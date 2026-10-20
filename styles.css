@@ -1,0 +1,104 @@
+:root{
+  --brand:#0B3D2E;--brand2:#12664F;--brand3:#1C7C61;--accent:#E0A100;--ink:#111827;--ink2:#374151;--muted:#6B7280;
+  --line:#E5E7EB;--bg:#F6F7F9;--card:#fff;--ok:#059669;--warn:#B45309;--bad:#DC2626;--radius:16px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%;line-height:1.65}
+a{color:var(--brand2);text-decoration:none}
+.container{max-width:1080px;margin:0 auto;padding:0 16px}
+.muted{color:var(--muted);font-size:.85rem}
+.loading{padding:48px 0;text-align:center;color:var(--muted)}
+
+/* ---------- ヘッダー ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:10px 18px;
+  background:linear-gradient(90deg,#0B3D2E,#12664F);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.brand{color:#fff;font-weight:900;letter-spacing:.3px;font-size:1.05rem;white-space:nowrap}
+.brand .b1{color:var(--accent)}
+.nav{display:flex;gap:4px;margin-left:12px;flex:1}
+.nav a{color:#D1FAE5;padding:6px 12px;border-radius:999px;font-weight:600;font-size:.92rem}
+.nav a.on,.nav a:hover{background:rgba(255,255,255,.14);color:#fff}
+.acct{color:#0B3D2E;background:var(--accent);padding:6px 14px;border-radius:999px;font-weight:800;font-size:.88rem;white-space:nowrap}
+.tabbar{display:none}
+
+#banner .demo{background:#FFFBEB;border-bottom:1px solid #FDE68A;color:#92400E;font-size:.85rem;padding:8px 16px;text-align:center}
+
+/* ---------- 共通部品 ---------- */
+.hero{margin:20px 0;padding:26px 24px;border-radius:22px;color:#fff;
+  background:radial-gradient(1200px 300px at 90% -10%,rgba(224,161,0,.25),transparent),linear-gradient(120deg,#0B3D2E,#12664F 60%,#1C7C61)}
+.hero h1{margin:0 0 8px;font-size:1.65rem;line-height:1.35}
+.hero p{margin:0;color:#D1FAE5}
+.hero .cta{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:11px 18px;
+  font-weight:800;font-size:.95rem;cursor:pointer;background:var(--brand2);color:#fff;min-height:44px}
+.btn:hover{filter:brightness(1.05)}
+.btn.gold{background:var(--accent);color:#1F2937}
+.btn.ghost{background:#fff;color:var(--brand2);border:1px solid #A7F3D0}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.grid{display:grid;gap:14px}
+.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 6px;font-size:1.02rem}
+.kpi .l{color:var(--muted);font-size:.78rem}.kpi .v{font-size:1.5rem;font-weight:900}.kpi .s{color:var(--muted);font-size:.78rem}
+.sec{margin:26px 0 10px;font-size:1.15rem;font-weight:900;color:var(--brand)}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:800;line-height:1.6}
+.pill.lock{background:#FEF3C7;color:#92400E}.pill.open{background:#D1FAE5;color:#065F46}
+.pill.done{background:#E0E7FF;color:#3730A3}.pill.g1{background:#DC2626;color:#fff}.pill.g2{background:#2563EB;color:#fff}
+.pill.g3{background:#16A34A;color:#fff}.pill.free{background:#F3F4F6;color:#374151}
+.step{display:flex;gap:10px;align-items:flex-start}
+.step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;font-weight:900;display:grid;place-items:center}
+
+/* ---------- レース一覧 ---------- */
+.day{margin:18px 0 8px;font-weight:900;color:var(--ink2)}
+.race{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:#fff;border:1px solid var(--line);margin-bottom:10px;color:var(--ink)}
+.race:hover{border-color:#A7F3D0;box-shadow:var(--shadow)}
+.race .rn{flex:0 0 52px;text-align:center;font-weight:900;color:var(--brand)}
+.race .rn small{display:block;color:var(--muted);font-weight:600;font-size:.72rem}
+.race .t{flex:1;min-width:0}.race .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.race .t span{color:var(--muted);font-size:.82rem}
+
+/* ---------- 予想の詳細 ---------- */
+.horses{width:100%;border-collapse:separate;border-spacing:0;font-size:.9rem}
+.horses th{position:sticky;top:0;background:#F9FAFB;color:var(--muted);font-weight:700;font-size:.76rem;text-align:left;padding:8px 8px;border-bottom:1px solid var(--line)}
+.horses td{padding:10px 8px;border-bottom:1px solid #F3F4F6;vertical-align:middle}
+.horses th,.horses td{white-space:nowrap}
+.horses td.nm{white-space:normal;min-width:7.5em;font-weight:700}
+.horses tr:last-child td{border-bottom:0}
+.mk{font-weight:900;font-size:1.05rem;width:26px;text-align:center}
+.mk.m1{color:#DC2626}.mk.m2{color:#2563EB}.mk.m3{color:#16A34A}
+.umaban{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:#111827;color:#fff;font-weight:800;font-size:.82rem}
+.bar{position:relative;height:8px;border-radius:99px;background:#F3F4F6;overflow:hidden;min-width:70px}
+.bar>i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#12664F,#34D399);border-radius:99px}
+.ev.good{color:var(--ok);font-weight:800}.ev.low{color:var(--muted)}
+.lockbox{text-align:center;padding:30px 18px;border:2px dashed #FCD34D;border-radius:var(--radius);background:#FFFBEB}
+.lockbox h3{margin:6px 0}.lockbox p{color:var(--ink2)}
+.rec{border-left:6px solid var(--accent)}
+.rec table{width:100%;border-collapse:collapse;font-size:.9rem}.rec td{padding:6px 4px;border-bottom:1px solid #F3F4F6}
+.md{font-size:.93rem}.md h3{font-size:1.05rem;color:var(--brand)}.md ul{padding-left:1.2em}.md strong{color:var(--ink)}
+.chart{position:relative;height:260px}
+.form{display:grid;gap:10px;max-width:420px}
+.form input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#fff}
+.alert{padding:10px 14px;border-radius:12px;font-size:.9rem;margin:10px 0}
+.alert.err{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}.alert.ok{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
+.foot{padding:28px 16px 90px;color:var(--muted);font-size:.8rem}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* ---------- スマホ・タブレット ---------- */
+@media (max-width: 900px){ .g4{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:1fr} }
+@media (max-width: 640px){
+  .nav{display:none}
+  .topbar{padding:10px 14px}
+  .brand{font-size:.98rem}
+  .hero{margin:14px 0;padding:20px 18px;border-radius:18px}.hero h1{font-size:1.3rem}
+  .g2{grid-template-columns:1fr}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tabbar a{flex:1;text-align:center;color:var(--muted);font-size:.7rem;font-weight:700;padding:2px 0}
+  .tabbar a span{display:block;font-size:1.25rem;line-height:1.2}
+  .tabbar a.on{color:var(--brand2)}
+  .horses .hide-sm{display:none}
+  .horses{font-size:.84rem}.horses td,.horses th{padding:8px 5px}
+  .bar{display:none}
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B3D2E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="JRA AI 競馬アナリティクス — AI による競馬予想と、予想の検証・振り返り">
+  <!-- 外部スクリプトは信頼できる CDN からのみ読み込む（CSP で制限） -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' data:; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>JRA AI 競馬アナリティクス</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/"><span class="b1">JRA</span> AI 競馬アナリティクス</a>
+    <nav class="nav" id="nav">
+      <a href="#/" data-r="home">ホーム</a>
+      <a href="#/races" data-r="races">予想</a>
+      <a href="#/stats" data-r="stats">成績</a>
+      <a href="#/about" data-r="about">使い方</a>
+    </nav>
+    <a class="acct" id="acct" href="#/account">ログイン</a>
+  </header>
+  <div id="banner"></div>
+  <main id="app" class="container" aria-live="polite"><div class="loading">読み込み中…</div></main>
+  <nav class="tabbar" id="tabbar">
+    <a href="#/" data-r="home"><span>🏠</span>ホーム</a>
+    <a href="#/races" data-r="races"><span>🎯</span>予想</a>
+    <a href="#/stats" data-r="stats"><span>📊</span>成績</a>
+    <a href="#/account" data-r="account"><span>👤</span>会員</a>
+  </nav>
+  <footer class="foot container">
+    <p>AI の確率は長い目で見た平均であり、1 レースの結果や将来の利益を保証するものではありません。馬券は余裕資金の範囲で、20 歳以上の方がご自身の判断でお楽しみください。</p>
+    <p class="muted">© JRA AI 競馬アナリティクス</p>
+  </footer>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>

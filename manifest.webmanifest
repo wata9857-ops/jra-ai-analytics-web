@@ -1,0 +1,9 @@
+{
+  "name": "JRA AI 競馬アナリティクス",
+  "short_name": "AI競馬",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F6F7F9",
+  "theme_color": "#0B3D2E",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
