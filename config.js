@@ -3,7 +3,7 @@
 //   ※ service_role キー（書き込み用の秘密キー）は絶対にここに書かないでください（PC の .streamlit/secrets.toml にだけ置く）。
 //   空のままだと、架空のデータによるデモ表示になります。
 window.APP_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
+  SUPABASE_URL: "https://trdhsfimzzwaqgylzkip.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_L0S_uWFNzq8PaFvNN_yCLQ_QO3dFL6i",
   SUBSCRIBE_URL: ""   // 将来の決済（Stripe Checkout など）のページ。空なら「準備中」と表示
 };
