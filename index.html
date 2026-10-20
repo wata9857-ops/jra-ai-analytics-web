@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0B3D2E">
+  <meta name="theme-color" content="#F3F0E7">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="description" content="JRA AI 競馬アナリティクス — AI による競馬予想と、予想の検証・振り返り">
   <!-- 外部スクリプトは信頼できる CDN からのみ読み込む（CSP で制限） -->
@@ -16,27 +16,32 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#/"><span class="b1">JRA</span> AI 競馬アナリティクス</a>
-    <nav class="nav" id="nav">
-      <a href="#/" data-r="home">ホーム</a>
-      <a href="#/races" data-r="races">予想</a>
-      <a href="#/stats" data-r="stats">成績</a>
-      <a href="#/about" data-r="about">使い方</a>
-    </nav>
-    <a class="acct" id="acct" href="#/account">ログイン</a>
+  <header class="mast">
+    <div class="container">
+      <div class="mast-in">
+        <a class="brand" href="#/"><span class="seal">AI</span>競馬アナリティクス<small>JRA 全レースの予想と、その答え合わせ</small></a>
+        <nav class="nav" id="nav" aria-label="メインメニュー">
+          <a href="#/" data-r="home">トップ</a>
+          <a href="#/races" data-r="races">レース</a>
+          <a href="#/stats" data-r="stats">成績</a>
+          <a href="#/about" data-r="about">見方</a>
+        </nav>
+        <a class="acct" id="acct" href="#/account">ログイン</a>
+      </div>
+      <div class="dateline"><span id="today"></span><span id="who"></span></div>
+    </div>
   </header>
   <div id="banner"></div>
   <main id="app" class="container" aria-live="polite"><div class="loading">読み込み中…</div></main>
-  <nav class="tabbar" id="tabbar">
-    <a href="#/" data-r="home"><span>🏠</span>ホーム</a>
-    <a href="#/races" data-r="races"><span>🎯</span>予想</a>
-    <a href="#/stats" data-r="stats"><span>📊</span>成績</a>
-    <a href="#/account" data-r="account"><span>👤</span>会員</a>
+  <nav class="tabbar" id="tabbar" aria-label="メインメニュー">
+    <a href="#/" data-r="home">トップ</a>
+    <a href="#/races" data-r="races">レース</a>
+    <a href="#/stats" data-r="stats">成績</a>
+    <a href="#/account" data-r="account">会員</a>
   </nav>
   <footer class="foot container">
-    <p>AI の確率は長い目で見た平均であり、1 レースの結果や将来の利益を保証するものではありません。馬券は余裕資金の範囲で、20 歳以上の方がご自身の判断でお楽しみください。</p>
-    <p class="muted">© JRA AI 競馬アナリティクス</p>
+    <p>AI の確率は長い期間で見た平均です。1 レースの結果や将来の利益を保証するものではありません。成績は損失も含めてすべて掲載しています。馬券は余裕資金の範囲で、20 歳以上の方がご自身の判断でお楽しみください。</p>
+    <p>© JRA AI 競馬アナリティクス（JRA の公式サイトではありません）</p>
   </footer>
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
