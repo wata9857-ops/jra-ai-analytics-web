@@ -214,16 +214,22 @@
     ], "f4");
   }
   const empty = (t) => `<div class="sheet muted">${t}</div>`;
+  // v35: 金額ではなく回収率（%）で見せる。100% 以上だけ控えめに色を付け、100% 未満は通常の文字色（損失を強調しない）
+  const roiTag = (r, d = 0) => (r == null || isNaN(r) ? "—" : `<span class="roi ${r >= 1 ? "up" : ""}">${pct(r, d)}</span>`);
+  function roiBar(r) {
+    const w = r == null ? 0 : Math.max(2, Math.min(100, (r / 2) * 100));   // 0〜200% を棒の長さに、中央の線が 100%
+    return `<span class="rbar" aria-hidden="true"><i style="width:${w}%"></i><b></b></span>`;
+  }
 
   function raceRow(r, idx) {
     const started = r.post_time && new Date(r.post_time) <= new Date();
     const s = idx?.[r.race_id];
     let right;
     if (r.status === "finished") {
-      const net = s?.nets?.[s.rec || "ai"];
-      right = `<span class="chip done">確定</span>${s?.winner ? `<span class="rs">1着 ${esc(s.winner)}</span>` : ""}${s?.ai1_pos ? `<span class="rs">AI1位→${esc(s.ai1_pos)}着</span>` : ""}${net != null ? `<span class="rs">${pl(net)}</span>` : ""}`;
+      const k = s?.rec || "ai", st = s?.stakes?.[k], rt = s?.rets?.[k];
+      right = `<span class="st st-done">結果</span>${s?.ai1_pos ? `<span class="rs">AI1位 <b>${esc(s.ai1_pos)}着</b></span>` : ""}${st ? `<span class="rs">${STRAT[k].name} ${roiTag(rt / st)}</span>` : ""}`;
     } else {
-      right = started ? `<span class="chip">発走済み</span>` : isPremium() ? `<span class="chip">予想公開中</span>` : `<span class="chip lock">会員限定</span>`;
+      right = started ? `<span class="st">発走済み</span>` : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">会員限定</span>`;
     }
     return `<a class="rrow" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rn"><b>${r.race_num ? esc(r.race_num) + "R" : ""}</b><small>${fmtTime(r.post_time)}</small></div>
@@ -239,13 +245,19 @@
       h += `<h3 class="day">${fmtDate(d, true)}</h3>`;
       for (const [c, rs] of m) {
         rs.sort((a, b) => (a.race_num || 0) - (b.race_num || 0));
-        h += `<div class="course-h">${esc(c || "")}</div><div class="rlist">${rs.map((r) => raceRow(r, idx)).join("")}</div>`;
+        h += `<h4 class="course-h">${esc(c || "")}</h4><div class="rlist">${rs.map((r) => raceRow(r, idx)).join("")}</div>`;
       }
     }
     return h;
   }
 
   // ---------------- トップ ----------------
+  let homeDone = [], homeIdx = {};
+  function homeDoneList(filter) {
+    const f = filter || "all";
+    const list = f === "all" ? homeDone : f === "重賞" ? homeDone.filter((r) => /G[123]/.test(r.grade || "")) : homeDone.filter((r) => r.course === f);
+    return list.length ? groupedList(list, homeIdx) : empty("条件に合うレースがありません。");
+  }
   async function viewHome(tok) {
     setNav("home");
     const t = todayStr();
@@ -254,20 +266,32 @@
       queryRaces({ status: "finished", limit: 24 }).catch(() => []),
       getPerf().catch(() => null), getIndex()]);
     if (tok !== routeTok) return;
+    homeDone = done; homeIdx = idx;
     const p = perf?.payload || {};
     const nextDay = up[0]?.race_date;
     const upDay = up.filter((r) => r.race_date === nextDay);
-    const sl = p.strategies_live || {};
-    const strip = SORDER.filter((k) => sl[k]?.stake).map((k) => {
-      const s = sl[k], roi = s.ret / s.stake;
-      return `<a class="sfig" href="#/stats"><span class="l">${STRAT[k].name}</span><span class="v ${roiCls(roi)}">${pct(roi, 0)}</span><span class="s">${num(s.n)}R・${pl(s.ret - s.stake)}</span></a>`;
+    const sl = p.strategies_live || {}, bt = p.strategies_backtest || {};
+    const cards = SORDER.map((k) => {
+      const s = sl[k] || {}, b = bt[k] || {}, roi = s.stake ? s.ret / s.stake : null;
+      return `<a class="scard" href="#/stats" aria-label="${STRAT[k].name}の成績を見る">
+        <span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span>
+        <span class="sv">${roi == null ? '<span class="roi wait">—</span>' : roiTag(roi)}</span>${roiBar(roi)}
+        <span class="ss">${s.stake ? `回収率・${num(s.n)}レース・的中率 ${pct(s.hit / s.n, 0)}` : "まだ購入したレースはありません"}</span>
+        ${b.full_roi != null ? `<span class="sb">過去の検証 ${pct(b.full_roi, 0)}</span>` : ""}</a>`;
     }).join("");
+    const courses = [...new Set(done.map((r) => r.course).filter(Boolean))];
+    const hasG = done.some((r) => /G[123]/.test(r.grade || ""));
+    const chips = [["all", "すべて"], ...courses.map((c) => [c, c]), ...(hasG ? [["重賞", "重賞"]] : [])]
+      .map(([v, l], i) => `<button type="button" class="fchip ${i === 0 ? "on" : ""}" data-act="hf" data-v="${esc(v)}" aria-pressed="${i === 0}">${esc(l)}</button>`).join("");
     app.innerHTML = `
-      ${strip ? `<div class="sstrip" aria-label="買い方ごとの通算回収率">${strip}</div>` : ""}
-      <div class="h-sec"><h2>${nextDay ? `次の開催　${fmtDate(nextDay)}` : "これからのレース"}</h2><a class="aside" href="#/races?tab=upcoming">すべて</a></div>
+      <div class="h-sec"><h2>買い方ごとの回収率</h2><a class="more-link" href="#/stats">詳しく見る ›</a></div>
+      <div class="scards">${cards}</div>
+      <p class="note">回収率は公開したレースでの通算（100% で購入額と同じ払戻）。「過去の検証」は 2016〜2026 年のデータでの通算です。</p>
+      <div class="h-sec"><h2>${nextDay ? `次の開催　${fmtDate(nextDay)}` : "これからのレース"}</h2><a class="more-link" href="#/races?tab=upcoming">すべて見る ›</a></div>
       ${upDay.length ? groupedList(upDay, idx).replace(/<h3 class="day">.*?<\/h3>/, "") : empty("公開予定の予想はまだありません。")}
-      <div class="h-sec"><h2>最近の結果</h2><a class="aside" href="#/races?tab=finished">すべて</a></div>
-      ${done.length ? groupedList(done, idx) : empty("まだありません。")}`;
+      <div class="h-sec"><h2>最近の結果</h2><a class="more-link" href="#/races?tab=finished">すべて見る ›</a></div>
+      ${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}
+      <div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`;
   }
 
   // ---------------- レース一覧（検索・絞り込み・カレンダー） ----------------
@@ -301,7 +325,7 @@
   async function viewRaces(tok) {
     setNav("races");
     const f = parseQuery();
-    const tab = f.tab || (f.date ? "all" : "upcoming");
+    const tab = f.tab || "all";
     const month = f.month || (f.date || todayStr()).slice(0, 7);
     const qf = { status: tab === "all" ? "" : tab, date: f.date || "", course: f.course || "", surface: f.surface || "", grade: f.grade || "", q: f.q || "",
       order: tab === "upcoming" ? "asc" : (f.order || "desc"), limit: Number(f.limit || 120) };
@@ -312,7 +336,8 @@
       .map(([k, l]) => `<button type="button" class="tab ${tab === k ? "on" : ""}" data-act="tab" data-v="${k}" aria-pressed="${tab === k}">${l}</button>`).join("");
     const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`;
     const active = ["date", "course", "surface", "grade", "q"].filter((k) => f[k]).length;
-    app.innerHTML = `
+    const hasCond = ["date", "course", "surface", "grade", "q"].some((k) => f[k]);
+    app.innerHTML = `${hasCond ? backBar("条件を指定したレース一覧") : ""}
       <div class="filters" id="filters">
         <div class="tabs" role="group" aria-label="表示するレース">${tabs}</div>
         <form class="frow" id="f-search" role="search">
@@ -431,19 +456,24 @@
   // 4 つの買い方の収支比較（結果が出たレース）
   function strategyCompare(V, P) {
     const S = V.strategies;
-    if (!S) return V.settle ? moneyFigs({ stake: V.settle.stake, ret: V.settle.ret }) : empty("このレースは買い方の記録がありません。");
+    if (!S) return V.settle ? `<p>回収率 ${roiTag(V.settle.ret / V.settle.stake)}</p>` : empty("このレースは買い方の記録がありません。");
     const rec = P?.recommended || V.recommended || "ai";
-    const rows = SORDER.filter((k) => S[k]).map((k) => {
+    const ks = SORDER.filter((k) => S[k]);
+    const rows = ks.map((k) => {
       const s = S[k], plan = P?.strategies?.[k];
-      const net = s.stake ? s.ret - s.stake : null, roi = s.stake ? s.ret / s.stake : null;
-      const tk = s.skip || !s.stake ? "見送り" : (s.tickets || plan?.tickets || []).map((t) => `<span class="tk ${t.ret > 0 ? "hit" : ""}">${esc(t.type)} ${esc(t.combo)}</span>`).join(" ");
+      const roi = s.stake ? s.ret / s.stake : null;
+      const res = s.skip || !s.stake ? '<span class="res-skip">見送り</span>' : s.ret > 0 ? '<span class="res-hit">的中</span>' : '<span class="res-miss">不的中</span>';
+      const tk = s.skip || !s.stake ? "" : (s.tickets || plan?.tickets || []).map((t) => `<span class="tk ${t.ret > 0 ? "hit" : ""}">${esc(t.type)} ${esc(t.combo)}</span>`).join(" ");
       return `<tr class="${k === rec ? "rec" : ""}"><td><b>${STRAT[k].name}</b>${k === rec ? ' <span class="chip done">おすすめ</span>' : ""}<div class="tks">${tk}</div></td>
-        <td class="r">${s.stake ? yen(s.stake) : "—"}</td><td class="r">${s.stake ? yen(s.ret) : "—"}</td><td class="r">${net == null ? "—" : pl(net)}</td>
-        <td class="r ${roiCls(roi)}"><b>${roi == null ? "—" : pct(roi, 0)}</b></td></tr>`;
+        <td class="c">${res}</td><td class="r"><b>${roi == null ? "—" : roiTag(roi)}</b></td></tr>`;
     }).join("");
-    return `<div class="tbl-wrap"><table class="t scmp"><thead><tr><th>買い方・買い目</th><th class="r">購入</th><th class="r">払戻</th><th class="r">収支</th><th class="r">回収率</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <p class="note">すべて発走前に決めた買い目と金額で計算しています（結果を見てから選び直したものではありません）。緑の買い目は的中。${V.strategies_note ? esc(V.strategies_note) : ""}</p>`;
+    const money = ks.filter((k) => S[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(S[k].stake)}</td><td class="r">${yen(S[k].ret)}</td></tr>`).join("");
+    return `<div class="tbl-wrap"><table class="t scmp"><thead><tr><th>買い方・買い目</th><th class="c">結果</th><th class="r">回収率</th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${money ? `<details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>${money}</tbody></table></div></details>` : ""}
+      <p class="note">すべて発走前に決めた買い目で計算しています（結果を見てから選び直したものではありません）。回収率 100% で購入額と同じ払戻。${V.strategies_note ? esc(V.strategies_note) : ""}</p>`;
   }
+  // 戻るボタン（アプリ内の履歴があれば戻り、無ければ一覧へ）
+  const backBar = (label, sticky) => `<div class="backbar ${sticky ? "sticky" : ""}"><button type="button" class="backbtn" data-act="back" aria-label="前の画面に戻る">‹ 戻る</button><span class="crumb">${esc(label || "")}</span></div>`;
   function sameDayNav(r, list) {
     if (!list || list.length < 2) return "";
     const courses = [...new Set(list.map((x) => x.course))];
@@ -454,6 +484,7 @@
       <div class="sd-row">${prev ? `<a class="ib" href="#/race/${encodeURIComponent(prev.race_id)}" aria-label="前のレース">‹</a>` : '<span class="ib off">‹</span>'}
       <div class="rchips">${mine.map((x) => `<a class="rc ${x.race_id === r.race_id ? "on" : ""}" href="#/race/${encodeURIComponent(x.race_id)}">${esc(x.race_num)}R</a>`).join("")}</div>
       ${next ? `<a class="ib" href="#/race/${encodeURIComponent(next.race_id)}" aria-label="次のレース">›</a>` : '<span class="ib off">›</span>'}</div>
+      <p class="swipe-hint">左右にスワイプで前後のレースへ</p>
       ${courses.length > 1 ? `<div class="sd-c">${courses.map((c) => { const f = list.filter((x) => x.course === c).sort((a, b) => (a.race_num || 0) - (b.race_num || 0)); const pick = f.find((x) => x.race_num === r.race_num) || f[0]; return `<a class="cc ${c === r.course ? "on" : ""}" href="#/race/${encodeURIComponent(pick.race_id)}">${esc(c)}</a>`; }).join("")}</div>` : ""}
     </nav>`;
   }
@@ -466,12 +497,12 @@
     const [pred, review, sameDay] = await Promise.all([getPrediction(id), getReview(id), queryRaces({ date: r.race_date, order: "asc", limit: 60 }).catch(() => [])]);
     if (tok !== routeTok) return;
     const P = pred?.payload, V = review?.payload;
-    let html = sameDayNav(r, sameDay) + `<div class="race-head"><div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
+    let html = backBar(`${fmtDate(r.race_date)} ${r.course || ""} ${r.race_num ? r.race_num + "R" : ""}`, true) + sameDayNav(r, sameDay) + `<div class="race-head"><div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
       <h1>${esc(r.race_name)} ${gradeChip(r.grade)}</h1><div>${surfChip(r.surface)} <span class="chip">${esc(r.distance)}m</span> <span class="chip">${esc(r.field)}頭</span>
       ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}</div></div>`;
     if (V && V.result) {
       html += `<div class="h-sec"><h2>結果</h2><span class="aside">AI の上位 3 頭は何着だったか</span></div>${verdictBlock(V.result, r.field)}
-        <div class="h-sec"><h2>買い方ごとの収支</h2></div>${strategyCompare(V, P)}
+        <div class="h-sec"><h2>買い方ごとの結果</h2></div>${strategyCompare(V, P)}
         <div class="cols c2" style="margin-top:12px"><div>${resultTable(V.result, r.field)}</div><div class="sheet">${slopeChart(V.result)}
         <p class="note">左が AI の予想順位、右が実際の着順。藍＝予想上位 3 頭が 3 着以内、朱＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。</p></div></div>
         <div class="h-sec"><h2>配当</h2></div>${paysTable(V.pays)}
@@ -503,11 +534,18 @@
     if (tok !== routeTok) return;
     const p = perf?.payload || {};
     const sl = p.strategies_live || {}, sb2 = p.strategies_backtest || {};
-    let html = `<div class="h-sec"><h2>買い方ごとの通算成績</h2><span class="aside">発走前に公開した買い目だけ・損失も含めて全件</span></div>`;
+    const idx = await getIndex();
+    if (tok !== routeTok) return;
+    let html = `<div class="h-sec"><h2>買い方ごとの通算成績</h2><span class="aside">発走前に公開した買い目だけ・外れも含めて全件</span></div>`;
     const liveRows = SORDER.filter((k) => sl[k]);
-    html += liveRows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">レース</th><th class="r">購入</th><th class="r">払戻</th><th class="r">収支</th><th class="r">回収率</th><th class="r hide-sm">的中</th></tr></thead><tbody>
-      ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="6" class="muted">これまでのレースはすべて見送り（期待値が基準に届かなかったため）</td></tr>`; return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td class="r">${num(s.n)}</td><td class="r">${yen(s.stake)}</td><td class="r">${yen(s.ret)}</td><td class="r">${pl(s.ret - s.stake)}</td><td class="r ${roiCls(roi)}"><b>${pct(roi)}</b></td><td class="r hide-sm">${num(s.hit)}</td></tr>`; }).join("")}
-      </tbody></table></div>${p.strategies_live_note ? `<p class="note">${esc(p.strategies_live_note)}</p>` : ""}${p.strategies_series ? `<div class="sheet" style="margin-top:12px"><h3>累計収支の推移</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
+    html += liveRows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm"></th></tr></thead><tbody>
+      ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">これまでのレースはすべて見送り（期待値が基準に届かなかったため）</td></tr>`;
+        return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td class="r">${num(s.n)}</td><td class="r">${pct(s.hit / s.n, 0)}</td><td class="r"><b>${roiTag(roi, 1)}</b></td><td class="hide-sm">${roiBar(roi)}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>
+      ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>
+      ${p.strategies_live_note ? `<p class="note">${esc(p.strategies_live_note)}</p>` : ""}
+      ${Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3>回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
       : empty("結果の出たレースが増えると、ここに買い方ごとの通算成績を表示します。");
     if (Object.keys(sb2).length) {
       html += `<div class="h-sec"><h2>過去データでの検証</h2><span class="aside">${esc(p.strategies_backtest_period || "")}</span></div>
@@ -529,10 +567,17 @@
       成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。過去の検証は、その年より前のデータだけで作ったモデルと買い方で計算しています。</p></div></details>`;
     app.innerHTML = html;
     const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#3F6B3A", high: "#B8202B" };
-    const ss = p.strategies_series;
-    if (ss) {
-      makeChart("cum4", { type: "line", data: { labels: ss.dates, datasets: SORDER.filter((k) => ss[k]).map((k) => ({ label: STRAT[k].name, data: ss[k], borderColor: colors[k], borderWidth: 2, pointRadius: 0, tension: 0 })) },
-        options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: "bottom" } }, scales: { y: { ticks: { callback: (v) => v.toLocaleString("ja-JP") + "円" } } } } });
+    const rows = Object.values(idx).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+    if (rows.length) {
+      const acc = {}, ser = {};
+      rows.forEach((x) => SORDER.forEach((k) => {
+        const a = acc[k] || (acc[k] = { s: 0, r: 0 });
+        a.s += x.stakes?.[k] || 0; a.r += x.rets?.[k] || 0;
+        (ser[k] || (ser[k] = [])).push(a.s ? Math.round((a.r / a.s) * 1000) / 10 : null);
+      }));
+      makeChart("cum4", { type: "line", data: { labels: rows.map((x, i) => `${i + 1}`), datasets: SORDER.filter((k) => ser[k].some((v) => v != null)).map((k) => ({ label: STRAT[k].name, data: ser[k], borderColor: colors[k], borderWidth: 2, pointRadius: 2, tension: 0, spanGaps: true })) },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: "bottom" } },
+          scales: { x: { title: { display: true, text: "レース（古い順）" } }, y: { suggestedMin: 0, suggestedMax: 150, ticks: { callback: (v) => v + "%" } } } } });
     }
     const ks = SORDER.filter((k) => sb2[k]?.by_year);
     if (ks.length) {
@@ -580,8 +625,16 @@
 
   // ---------------- ルーター（最後の操作だけを描画） ----------------
   let routeTok = 0;
+  const hist = [];   // アプリ内の移動履歴（戻るボタン用）
+  function goBack() {
+    if (hist.length > 1) history.back();
+    else location.hash = location.hash.startsWith("#/race/") ? "#/races" : "#/races?tab=all";
+  }
   async function route() {
     const tok = ++routeTok;
+    const cur = location.hash || "#/";
+    if (hist.length > 1 && hist[hist.length - 2] === cur) hist.pop(); else if (hist[hist.length - 1] !== cur) hist.push(cur);
+    if (hist.length > 50) hist.shift();
     destroyCharts();
     const h = location.hash || "#/";
     const path = h.split("?")[0];
@@ -618,6 +671,12 @@
     else if (act === "clear") { setQuery({ tab: f.tab }); }
     else if (act === "more") { setQuery({ ...f, limit: String(Number(f.limit || 120) + 120) }); }
     else if (act === "retry") { clearCache(); scheduleRoute(); }
+    else if (act === "back") { goBack(); }
+    else if (act === "hf") {
+      document.querySelectorAll(".fchip").forEach((b) => { const on = b === el; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+      const box = document.getElementById("home-done");
+      if (box) box.innerHTML = homeDoneList(el.dataset.v);
+    }
     else if (act === "logout") {
       if (el.disabled) return;
       el.disabled = true;
@@ -663,6 +722,50 @@
       setQuery({ ...parseQuery(), q: v, tab: parseQuery().tab || "all", limit: "" });
     }, 500);
   });
+
+  // スワイプ：レース詳細＝前後のレース、日付を選んだ一覧＝前日・翌日、それ以外＝画面下のタブの順に移動
+  //   表やカレンダーなど横に動かす部品の上、画面の端（iPhone の「戻る」操作と重なる）から始まる操作は対象外
+  const TABS = ["#/", "#/races", "#/stats", "#/account"];
+  const TAB_NAME = { "#/": "トップ", "#/races": "レース", "#/stats": "成績", "#/account": "会員" };
+  let sw = null;
+  function toast(t) {
+    let el = document.getElementById("toast");
+    if (!el) { el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+    el.textContent = t; el.classList.add("show");
+    clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 900);
+  }
+  function swipe(dir) {
+    const h = location.hash || "#/", path = h.split("?")[0];
+    if (path.startsWith("#/race/")) {
+      const a = document.querySelector(`.sdnav a[aria-label="${dir === "next" ? "次のレース" : "前のレース"}"]`);
+      if (a) { toast(dir === "next" ? "次のレース ›" : "‹ 前のレース"); location.hash = a.getAttribute("href"); }
+      else toast(dir === "next" ? "この日の最後のレースです" : "この日の最初のレースです");
+      return;
+    }
+    const f = parseQuery();
+    if (path === "#/races" && f.date) { setQuery({ ...f, date: addDays(f.date, dir === "next" ? 1 : -1), limit: "" }); toast(dir === "next" ? "翌日 ›" : "‹ 前日"); return; }
+    const i = TABS.indexOf(path === "" ? "#/" : path);
+    if (i < 0) return;
+    const j = i + (dir === "next" ? 1 : -1);
+    if (j < 0 || j >= TABS.length) return;
+    toast(dir === "next" ? `${TAB_NAME[TABS[j]]} ›` : `‹ ${TAB_NAME[TABS[j]]}`);
+    location.hash = TABS[j];
+  }
+  document.addEventListener("touchstart", (e) => {
+    sw = null;
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX < 24 || t.clientX > window.innerWidth - 24) return;
+    if (e.target.closest(".tbl-wrap, .rchips, .cal, .chart, .slope, input, select, textarea, .sd-c")) return;
+    sw = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!sw) return;
+    const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y, dt = Date.now() - sw.t;
+    sw = null;
+    if (dt > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    swipe(dx < 0 ? "next" : "prev");
+  }, { passive: true });
 
   async function init() {
     document.getElementById("today").textContent = new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", ...JST });

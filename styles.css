@@ -230,10 +230,55 @@ table.t td.r,table.t th.r{white-space:nowrap}
 .fmore summary::before{content:"＋ ";color:var(--muted)}.fmore[open] summary::before{content:"－ "}
 .filters .fmore .frow.sel{margin-top:0}
 
+
+/* ---------- v35：回収率の表示・戻る・スワイプ・絞り込みボタン ---------- */
+html,body{overscroll-behavior-x:none}   /* ブラウザの「横スワイプで前のページ」と、サイトのスワイプ操作が重ならないようにする */
+#app{touch-action:pan-y pinch-zoom}
+.tbl-wrap,.rchips,.fchips,.cal,.sd-c{touch-action:pan-x pan-y pinch-zoom}
+.roi{font-weight:800;color:var(--ink)}.roi.up{color:var(--plus)}.roi.wait{color:var(--rule2)}
+.rbar{position:relative;display:block;height:6px;background:#E9E4D6;margin:4px 0 2px;overflow:hidden}
+.rbar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.rbar b{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--shu)}
+td .rbar{width:120px}
+.scards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.scard{display:flex;flex-direction:column;background:var(--sheet);border:1px solid var(--rule);padding:12px 14px;color:var(--ink);min-height:44px}
+.scard:hover{text-decoration:none;border-color:var(--ink)}
+.scard .sn{font-family:var(--serif);font-weight:800;font-size:1rem}.scard .sn small{display:block;font-family:var(--sans);font-weight:400;font-size:.72rem;color:var(--muted)}
+.scard .sv{font-size:2rem;line-height:1.15;margin-top:4px}.scard .sv .roi{font-weight:800}
+.scard .ss{font-size:.74rem;color:var(--muted)}
+.scard .sb{font-size:.74rem;color:var(--ink2);margin-top:4px;border-top:1px solid var(--rule);padding-top:4px}
+.more-link{margin-left:auto;display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid var(--ink);color:var(--ink);font-size:.82rem;font-weight:700;background:var(--sheet)}
+.more-link:hover{text-decoration:none;background:var(--ink);color:var(--sheet)}
+.fchips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.fchips::-webkit-scrollbar{display:none}
+.fchip{flex:0 0 auto;min-height:40px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;background:var(--sheet);color:var(--ink);font-weight:700;font-size:.9rem;cursor:pointer;font-family:var(--sans)}
+.fchip:hover{background:#F3EEE2}
+.fchip.on{background:var(--ink);color:var(--sheet)}
+.fchip:active{transform:scale(.97)}
+h4.course-h{margin:12px 0 4px;font-size:.84rem;font-weight:700;color:var(--muted);letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+h4.course-h::after{content:"";flex:1;height:1px;background:var(--rule)}
+.st{font-size:.74rem;color:var(--muted);white-space:nowrap}
+.st::before{content:"●";margin-right:3px;font-size:.6rem;vertical-align:1px}
+.st-done::before{color:var(--ink)}.st-open::before{color:var(--plus)}.st-lock::before{color:var(--shu)}
+.rrow .rs b{font-weight:800}
+.res-hit{display:inline-block;padding:1px 8px;background:var(--plus-bg);color:var(--plus);font-weight:800;font-size:.8rem}
+.res-miss{color:var(--muted);font-size:.8rem}
+.res-skip{color:var(--rule2);font-size:.8rem}
+.backbar{display:flex;align-items:center;gap:10px;margin-top:10px}
+.backbtn{display:inline-flex;align-items:center;min-height:40px;padding:0 14px 0 10px;border:1px solid var(--ink);background:var(--sheet);color:var(--ink);font-weight:700;font-size:.9rem;cursor:pointer;font-family:var(--sans)}
+.backbtn:hover{background:var(--ink);color:var(--sheet)}
+.crumb{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.swipe-hint{display:none;font-size:.72rem;color:var(--muted);text-align:center;margin:4px 0 0}
+@media (hover:none) and (pointer:coarse){.swipe-hint{display:block}}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--sheet);
+  padding:8px 16px;font-size:.88rem;font-weight:700;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:60}
+#toast.show{opacity:.92;transform:translateX(-50%) translateY(0)}
+
 /* ---------- タブレット ---------- */
 @media (max-width:900px){
   .c4{grid-template-columns:1fr 1fr}
   .splans{grid-template-columns:1fr 1fr}
+  .scards{grid-template-columns:1fr 1fr}
   .figs{grid-template-columns:repeat(3,1fr)}
   .figs .fig:nth-child(3){border-right:0}
   .figs .fig:nth-child(n+4){border-top:1px solid var(--rule)}
@@ -272,6 +317,10 @@ table.t td.r,table.t th.r{white-space:nowrap}
   .sstrip{grid-template-columns:1fr 1fr}
   .sfig:nth-child(2n){border-right:0}.sfig:nth-child(n+3){border-top:1px solid var(--rule)}
   .splans{grid-template-columns:1fr}
+  .scards{grid-template-columns:1fr 1fr;gap:8px}
+  .scard{padding:10px 12px}.scard .sv{font-size:1.6rem}
+  .backbar.sticky{position:sticky;top:0;z-index:21;background:var(--paper);padding:6px 0;margin-top:4px}
+  .backbar.sticky + .sdnav{top:52px}
   .frow.sel label{min-width:calc(50% - 4px)}
   .rrow .res{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center}
   table.t.scmp td,table.t.scmp th{padding:6px 4px;font-size:.82rem}
