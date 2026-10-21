@@ -801,6 +801,69 @@
   let routeTimer = null;
   function scheduleRoute() { clearTimeout(routeTimer); routeTimer = setTimeout(route, 0); }
 
+  // ---------------- お知らせ（右上のベル。未読の数を赤い丸で表示。既読はこの端末に記録） ----------------
+  const NOTICE_KEY = "jra_notice_read";
+  const Notice = { items: [], open: false };
+  const readIds = () => { try { return new Set(JSON.parse(localStorage.getItem(NOTICE_KEY) || "[]")); } catch (e) { return new Set(); } };
+  const saveRead = (ids) => { try { localStorage.setItem(NOTICE_KEY, JSON.stringify([...ids].slice(-200))); } catch (e) { /* 保存できない端末では毎回未読 */ } };
+  function noticeBadge() {
+    const r = readIds(), n = Notice.items.filter((x) => !r.has(x.id)).length;
+    const b = document.getElementById("bell-n"), bell = document.getElementById("bell");
+    if (!b || !bell) return;
+    b.hidden = n === 0;
+    b.textContent = n > 9 ? "9+" : String(n);
+    bell.setAttribute("aria-label", n ? `お知らせ（未読 ${n} 件）` : "お知らせ");
+  }
+  function noticeBody(lines) {
+    let html = "", ul = [];
+    const flush = () => { if (ul.length) { html += `<ul>${ul.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`; ul = []; } };
+    (lines || []).forEach((t) => { if (String(t).startsWith("・")) ul.push(String(t).slice(1)); else { flush(); html += `<p>${esc(t)}</p>`; } });
+    flush();
+    return html;
+  }
+  function renderNotices() {
+    const r = readIds(), box = document.getElementById("ntc-list");
+    if (!box) return;
+    box.innerHTML = Notice.items.length ? Notice.items.map((x) => {
+      const d = new Date(x.date + "T00:00:00+09:00");
+      const unread = !r.has(x.id);
+      return `<details class="ntc-i ${unread ? "unread" : ""}"><summary><span class="ntc-meta"><span class="ntc-tag t-${esc(x.tag || "")}">${esc(x.tag || "お知らせ")}</span><time datetime="${esc(x.date)}">${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日</time>${unread ? '<span class="ntc-new">未読</span>' : ""}</span><b>${esc(x.title)}</b></summary><div class="ntc-b">${noticeBody(x.body)}</div></details>`;
+    }).join("") : '<p class="ntc-empty">お知らせはありません。</p>';
+  }
+  function toggleNotices(open) {
+    const p = document.getElementById("ntc"), bell = document.getElementById("bell");
+    if (!p || !bell) return;
+    Notice.open = open;
+    if (open) {
+      renderNotices();                       // 未読の印は開いた時点の状態で表示し、そのあと既読として記録
+      p.hidden = false;
+      bell.setAttribute("aria-expanded", "true");
+      const r = readIds();
+      Notice.items.forEach((x) => r.add(x.id));
+      saveRead(r);
+      noticeBadge();
+      document.getElementById("ntc-x")?.focus();
+    } else {
+      p.hidden = true;
+      bell.setAttribute("aria-expanded", "false");
+    }
+  }
+  async function loadNotices() {
+    try {
+      const r = await fetch("notices.json?v=" + Math.floor(Date.now() / 600000), { cache: "no-cache" });
+      if (!r.ok) return;
+      const j = await r.json();
+      Notice.items = (j.notices || []).filter((x) => x && x.id && x.title).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      noticeBadge();
+    } catch (e) { /* お知らせが読めなくてもサイトは使える */ }
+  }
+  document.getElementById("bell")?.addEventListener("click", (e) => { e.stopPropagation(); toggleNotices(!Notice.open); });
+  document.getElementById("ntc-x")?.addEventListener("click", () => { toggleNotices(false); document.getElementById("bell")?.focus(); });
+  document.addEventListener("click", (e) => { if (Notice.open && !e.target.closest("#ntc") && !e.target.closest("#bell")) toggleNotices(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && Notice.open) { toggleNotices(false); document.getElementById("bell")?.focus(); } });
+  window.addEventListener("hashchange", () => { if (Notice.open) toggleNotices(false); });
+  loadNotices();
+
   // ---------------- 操作（document に 1 つだけ登録） ----------------
   let searchTimer = null;
   document.addEventListener("click", async (e) => {

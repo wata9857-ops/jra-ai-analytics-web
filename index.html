@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="styles.css?v=42">
+  <link rel="stylesheet" href="styles.css?v=43">
 </head>
 <body>
   <header class="mast">
@@ -26,11 +26,19 @@
           <a href="#/stats" data-r="stats">成績</a>
           <a href="#/about" data-r="about">見方</a>
         </nav>
+        <button class="bell" id="bell" type="button" aria-label="お知らせ" aria-haspopup="dialog" aria-expanded="false" aria-controls="ntc">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+          <span class="bdg" id="bell-n" hidden></span>
+        </button>
         <a class="acct" id="acct" href="#/account">ログイン</a>
       </div>
       <div class="dateline"><span id="today"></span><span id="who"></span></div>
     </div>
   </header>
+  <div class="ntc" id="ntc" role="dialog" aria-modal="false" aria-labelledby="ntc-h" hidden>
+    <div class="ntc-hd"><b id="ntc-h">お知らせ</b><button type="button" class="ntc-x" id="ntc-x" aria-label="閉じる">×</button></div>
+    <div class="ntc-list" id="ntc-list"></div>
+  </div>
   <div id="banner"></div>
   <main id="app" class="container" aria-live="polite"><div class="loading">読み込み中…</div></main>
   <nav class="tabbar" id="tabbar" aria-label="メインメニュー">
@@ -48,6 +56,6 @@
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=43"></script>
 </body>
 </html>
