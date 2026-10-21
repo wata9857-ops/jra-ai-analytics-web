@@ -307,6 +307,143 @@ table.t.ftab tr.hit td.nm{background:var(--plus-bg);box-shadow:inset 3px 0 0 var
 .chip.post{border-color:var(--muted);color:var(--muted);background:#EFEAE0}
 .postnote{margin:6px 0 0;padding:6px 10px;background:#F6F1E3;border-left:3px solid var(--muted)}
 
+
+/* =================== v39：読みやすさの全面改善 =================== */
+/* 見出しは明朝体をやめ、太めのゴシック。数字は等幅 */
+:root{
+  --head:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","BIZ UDPGothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  --serif:var(--head);
+  --c-result:#2E7D32;--b-result:#EAF4EA;--c-bet:#1F3A5F;--b-bet:#E9EEF6;--c-ai:#5B3E96;--b-ai:#F1ECF8;
+  --c-pay:#9A6B00;--b-pay:#FBF3DF;--c-stat:#00695C;--b-stat:#E3F2EF;--c-info:#55524A;--b-info:#EFEBE1;
+}
+h1,h2,h3,.brand,.day,.splan header b,.story header b,.mlock b,.lead{font-family:var(--head)}
+h1,h2,h3{font-weight:800;letter-spacing:0}
+.brand{letter-spacing:.02em}
+.race-head h1{font-size:1.55rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.race-head .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.h3s{font-size:1rem;margin-bottom:6px}
+
+/* セクション（折りたたみ・色分け） */
+.blk{background:var(--sheet);border:1px solid var(--rule);border-left:5px solid var(--c-info);margin-top:16px;border-radius:6px;overflow:visible}
+.blk > summary{list-style:none;display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--b-info);border-radius:6px 6px 0 0;min-height:52px}
+.blk > summary::-webkit-details-marker{display:none}
+.blk:not([open]) > summary{border-radius:6px}
+.blk .bt{font-family:var(--head);font-size:1.18rem;font-weight:800;color:var(--ink);display:flex;align-items:baseline;gap:8px}
+.bt-sub{font-size:.8rem;font-weight:700;color:var(--muted)}
+.bbadge{font-size:.68rem;font-weight:800;padding:1px 7px;border-radius:999px;background:#fff;border:1px solid currentColor;color:var(--c-info)}
+.bchev{margin-left:auto;width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.75)}
+.bchev::before{content:"";width:8px;height:8px;border-right:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);transform:rotate(45deg) translate(-2px,-2px);transition:transform .15s}
+.blk:not([open]) .bchev::before{transform:rotate(-45deg)}
+.blk-b{padding:12px 14px 14px}
+.blk-top{display:flex;justify-content:flex-end;margin:-4px 0 8px}
+.acc-result{border-left-color:var(--c-result)}.acc-result > summary{background:var(--b-result)}.acc-result .bbadge{color:var(--c-result)}
+.acc-bet{border-left-color:var(--c-bet)}.acc-bet > summary{background:var(--b-bet)}.acc-bet .bbadge{color:var(--c-bet)}
+.acc-ai{border-left-color:var(--c-ai)}.acc-ai > summary{background:var(--b-ai)}.acc-ai .bbadge{color:var(--c-ai)}
+.acc-pay{border-left-color:var(--c-pay)}.acc-pay > summary{background:var(--b-pay)}.acc-pay .bbadge{color:var(--c-pay)}
+.acc-stat{border-left-color:var(--c-stat)}.acc-stat > summary{background:var(--b-stat)}.acc-stat .bbadge{color:var(--c-stat)}
+
+/* 「?」の説明 */
+.tipw{position:relative;display:inline-flex}
+.tipb{width:24px;height:24px;min-height:24px;border-radius:50%;border:1.5px solid var(--muted);background:#fff;color:var(--muted);font-weight:800;font-size:.8rem;
+  line-height:1;padding:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:var(--head)}
+.tipb:hover,.tipb[aria-expanded="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tipc{position:absolute;z-index:45;top:30px;left:-8px;width:min(340px,82vw);background:var(--ink);color:#fff;font-size:.84rem;font-weight:500;line-height:1.65;
+  padding:10px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.18);text-align:left;white-space:normal}
+.tipc::before{content:"";position:absolute;top:-6px;left:14px;border:6px solid transparent;border-top:0;border-bottom-color:var(--ink)}
+
+/* 格（G1/G2/G3）は塗りつぶしの札で目立たせる */
+.gb{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:22px;padding:0 6px;font-family:var(--head);font-weight:900;font-size:.76rem;color:#fff;border-radius:4px;letter-spacing:.02em;flex:0 0 auto}
+.gb.g1{background:#C62828}.gb.g2{background:#1565C0}.gb.g3{background:#2E7D32}.gb.op{background:#fff;color:var(--ink2);border:1px solid var(--rule2)}
+
+/* 結果カード（最近の結果・レース一覧） */
+.rcards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rcard{display:grid;grid-template-columns:62px 1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:8px;padding:10px 12px;color:var(--ink);min-height:84px}
+.rcard:hover{text-decoration:none;border-color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.rcard.is-hit{border-left:5px solid var(--c-result)}
+.rc-date{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ink);color:#fff;border-radius:6px;padding:6px 0;font-family:var(--head)}
+.rc-date b{font-size:1.15rem;line-height:1.1}.rc-date small{font-size:.72rem;opacity:.85}
+.rc-title{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.rc-title b{font-family:var(--head);font-size:1.02rem}
+.rc-meta{font-size:.76rem;color:var(--muted);margin-top:1px}
+.rc-res{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;font-size:.82rem}
+.rc-win b{font-weight:800}.rc-win small{color:var(--muted)}
+.rc-ai{color:var(--muted)}.rc-ai.on{color:var(--c-result)}.rc-ai b{font-weight:800}
+.rc-bet{display:flex;flex-direction:column;align-items:flex-end;text-align:right;min-width:112px;font-size:.78rem;color:var(--muted)}
+.rc-bet b{font-family:var(--head);font-size:.95rem;color:var(--ink)}
+.rc-bet.hit b{color:var(--c-result)}
+.rc-roi .roi{font-size:1.25rem;font-weight:900}
+.rc-k{font-size:.68rem}.rc-sub{font-size:.7rem}
+.day{display:flex;align-items:baseline;gap:10px;font-size:1.12rem;margin:18px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--ink)}
+.day small{font-size:.78rem;color:var(--muted);font-weight:600}
+.rrow .t{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.rrow .t b{font-family:var(--head)}
+.rrow .t .rmeta{flex-basis:100%}
+
+/* 買い目の札（購入・的中・外れ・返還） */
+.tkps{display:flex;flex-wrap:wrap;gap:6px}
+.tkp{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--c-bet);background:#fff;border-radius:6px;padding:4px 8px;font-size:.84rem;color:var(--ink)}
+.tkp b{font-family:var(--head);color:var(--c-bet);font-size:.78rem}
+.tkp .num{font-weight:800;font-size:.95rem}
+.tkp small{color:var(--muted)}
+.tkp em{font-style:normal;font-weight:800;font-size:.76rem;padding:0 6px;border-radius:999px}
+.tkp.hit{border-color:var(--c-result);background:var(--b-result)}.tkp.hit b{color:var(--c-result)}.tkp.hit em{background:var(--c-result);color:#fff}
+.tkp.miss{border-color:var(--rule2);opacity:.75}.tkp.miss b{color:var(--muted)}.tkp.miss em{background:#E4DFD3;color:var(--muted)}
+.tkp.refund{border-style:dashed;border-color:var(--muted)}.tkp.refund em{background:#E4DFD3;color:var(--ink2)}
+.buy-h{font-size:.74rem;font-weight:800;color:var(--c-bet);margin:4px 0}
+.why1{font-size:.8rem;color:var(--ink2)}
+.whyd{margin-top:8px;font-size:.8rem}.whyd summary{cursor:pointer;font-weight:700;color:var(--c-bet);min-height:32px;display:flex;align-items:center}
+.whyd p{margin:4px 0;color:var(--ink2)}
+
+/* 買い方ごとの結果 */
+.sres{display:grid;gap:8px}
+.sr{border:1px solid var(--rule);border-radius:8px;padding:10px 12px;background:#fff}
+.sr.rec{border-color:var(--c-bet);box-shadow:inset 0 0 0 1px var(--c-bet)}
+.sr.is-hit{background:#F7FBF7}
+.sr-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}.sr-h b{font-family:var(--head);font-size:1rem}
+.sr-roi{margin-left:auto;font-size:1.2rem}.sr-roi .roi{font-weight:900}
+.res-hit{display:inline-block;padding:1px 10px;background:var(--c-result);color:#fff;font-weight:800;font-size:.8rem;border-radius:999px}
+.res-miss{display:inline-block;padding:1px 10px;background:#E4DFD3;color:var(--ink2);font-weight:700;font-size:.8rem;border-radius:999px}
+.res-skip{display:inline-block;padding:1px 10px;border:1px dashed var(--rule2);color:var(--muted);font-size:.8rem;border-radius:999px}
+
+/* 4 つの買い方（カード） */
+.splan{border-radius:8px;background:#fff}
+.splan.rec{border:2px solid var(--c-bet)}
+
+/* 表の揃え */
+table.t th.r,table.t td.r{text-align:right}
+table.t th.c,table.t td.c{text-align:center}
+table.t th{vertical-align:bottom}
+table.t td{vertical-align:middle}
+.w-pos{width:40px}.w-mk{width:40px}.w-gate{width:52px}.w-bar{width:130px}
+table.t.pred td.nm{min-width:7.5em}
+table.t.stab td:first-child{min-width:9em}
+.pays td{display:flex;flex-wrap:wrap;gap:4px 18px}
+.pp{display:inline-flex;gap:10px;align-items:baseline}.pp b{min-width:5.5em;text-align:right}
+.hitstamp{margin-left:6px}
+
+/* 区分のチップ */
+.kchip{display:inline-block;font-size:.72rem;font-weight:800;padding:1px 8px;border-radius:999px;font-family:var(--head)}
+.k-pre{background:var(--c-bet);color:#fff}.k-ver{background:var(--b-stat);color:var(--c-stat);border:1px solid var(--c-stat)}.k-ref{background:#EFEAE0;color:var(--muted);border:1px solid var(--rule2)}
+.ctext{margin-top:10px;font-size:.88rem}
+
+/* 結果の帯・カード */
+.verdict{border-radius:8px;overflow:hidden}
+.scard{border-radius:8px}
+.scards{margin-top:0}
+.more-link{border-radius:999px}
+.fchips{padding-top:0}
+.sheet{border-radius:6px}
+
+@media (max-width:900px){.rcards{grid-template-columns:1fr}}
+@media (max-width:640px){
+  .blk > summary{padding:10px 12px}
+  .blk .bt{font-size:1.06rem}
+  .blk-b{padding:10px}
+  .rcard{grid-template-columns:52px 1fr;grid-template-areas:"d m" "b b";gap:8px 10px}
+  .rc-date{grid-area:d}.rc-main{grid-area:m}
+  .rc-bet{grid-area:b;flex-direction:row;align-items:center;justify-content:flex-end;gap:8px;border-top:1px dashed var(--rule);padding-top:6px;min-width:0}
+  .race-head h1{font-size:1.25rem}
+  .tipc{left:auto;right:-8px}.tipc::before{left:auto;right:14px}
+}
+
 /* ---------- タブレット ---------- */
 @media (max-width:900px){
   .c4{grid-template-columns:1fr 1fr}

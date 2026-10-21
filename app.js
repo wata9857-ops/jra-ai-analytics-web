@@ -102,7 +102,11 @@
         factors: { "能力": 90 - i * 12, "近走": 80 - i * 10, "末脚": 70 - i * 5, "距離": 60, "コース": 55, "馬場": 50, "展開": 45, "騎手": 65, "厩舎": 40, "血統": 75, "状態": 50 } }])),
       strategies: Object.fromEntries(Object.entries(strategies).map(([k, v]) => [k, { ...v, tickets: v.tickets.map((t) => ({ ...t, reason: "（デモ）3番 デモホースA（AI能力 1 位・2 番人気・近走と末脚が高評価）。期待値 1.12。" })) }])),
       recommended: "ai", review: { strategies: review.strategies, review_md: review.review_md, recommended: "ai" } };
-    index.DEMO3 = { ...index.DEMO3, ai1_win: false, trio: true, ai_top3_in_top3: 3 };
+    index.DEMO3 = { ...index.DEMO3, ai1_win: false, trio: true, ai_top3_in_top3: 3, winner_pop: 3, kind: "verified", best: { k: "high", roi: 34.1 }, n_bet: 4, n_hit: 4,
+      stakes: { ai: 200, stable: 300, balance: 200, high: 200 }, rets: { ai: 2480, stable: 480, balance: 840, high: 6820 } };
+    index.DEMO4 = { winner: "デモホースZ", winner_pop: 8, ai1_pos: 5, kind: "verified", best: null, n_bet: 3, n_hit: 0 };
+    perf.n_pre = 2; perf.n_live = 0; perf.n_verified = 2;
+    review.kind = "verified"; pred.kind = "verified"; pred.kind_note = "（デモ）学習に使っていないモデルで予想した検証レースです。";
     review.hits = { ai1_pos: 2, ai_top3_in_top3: 2, trio: false, exact: false, ai1_win: false };
     return { races, pred, review, index, perf, member };
   })();
@@ -235,55 +239,75 @@
     charts.push(new window.Chart(el, cfg));
   }
 
-  // ---------------- 共通部品 ----------------
+  // ---------------- 共通部品（v39：見出し・折りたたみ・「?」の説明） ----------------
+  // 説明文は常に表示せず、「?」を押したときだけ開く
+  const tip = (text) => (text ? `<span class="tipw"><button type="button" class="tipb" data-act="tip" aria-label="説明を表示" aria-expanded="false">?</button><span class="tipc" role="note" hidden>${esc(text)}</span></span>` : "");
+  // セクション：大きめのゴシックの見出し＋開閉ボタン。acc＝色分け（result 結果 / bet 買い方 / ai 予想 / pay 配当 / stat 成績 / info その他）
+  function blk(title, body, o = {}) {
+    return `<details class="blk acc-${o.acc || "info"}" ${o.closed ? "" : "open"}>
+      <summary><span class="bt">${title}</span>${o.badge ? `<span class="bbadge">${o.badge}</span>` : ""}${tip(o.tip)}<span class="bchev" aria-hidden="true"></span></summary>
+      <div class="blk-b">${o.top ? `<div class="blk-top">${o.top}</div>` : ""}${body}</div></details>`;
+  }
+  const gradeBadge = (g) => {
+    if (!g) return "";
+    const k = /G1/.test(g) ? "g1" : /G2/.test(g) ? "g2" : /G3/.test(g) ? "g3" : "op";
+    return `<span class="gb ${k}">${esc(g)}</span>`;
+  };
   function figs(items, cls = "") {
     return `<div class="figs ${cls}">${items.map((f) => `<div class="fig ${f.key ? "key" : ""}"><div class="l">${f.l}</div><div class="v">${f.v}</div>${f.s ? `<div class="s">${f.s}</div>` : ""}</div>`).join("")}</div>`;
   }
-  function moneyFigs(m) {
-    if (!m || !m.stake) return "";
-    const net = (m.ret || 0) - m.stake, roi = m.ret / m.stake;
-    return figs([
-      { l: "購入額", v: yen(m.stake), s: m.n != null ? `${num(m.n)}レース` : "" },
-      { l: "払戻額", v: yen(m.ret), s: m.hit != null ? `的中 ${num(m.hit)}` : "" },
-      { l: "収支", v: pl(net), key: true },
-      { l: "回収率", v: `<span class="${roiCls(roi)}">${pct(roi, 1)}</span>`, s: "100%で収支トントン" },
-    ], "f4");
-  }
   const empty = (t) => `<div class="sheet muted">${t}</div>`;
-  // v35: 金額ではなく回収率（%）で見せる。100% 以上だけ控えめに色を付け、100% 未満は通常の文字色（損失を強調しない）
+  // 回収率（%）。100% 以上だけ控えめに色を付け、100% 未満は通常の文字色
   const roiTag = (r, d = 0) => (r == null || isNaN(r) ? "—" : `<span class="roi ${r >= 1 ? "up" : ""}">${pct(r, d)}</span>`);
   function roiBar(r) {
     const w = r == null ? 0 : Math.max(2, Math.min(100, (r / 2) * 100));   // 0〜200% を棒の長さに、中央の線が 100%
     return `<span class="rbar" aria-hidden="true"><i style="width:${w}%"></i><b></b></span>`;
   }
+  const KIND = {
+    pre: { label: "発走前の予想", cls: "k-pre" },
+    verified: { label: "検証レース", cls: "k-ver" },
+    unverified: { label: "参考", cls: "k-ref" },
+  };
+  const kindChip = (k, note) => (KIND[k] ? `<span class="kchip ${KIND[k].cls}">${KIND[k].label}</span>${tip(note)}` : "");
+  const md2 = (s) => { const d = new Date(s + "T00:00:00+09:00"); return { m: d.getMonth() + 1, d: d.getDate(), w: "日月火水木金土"[d.getDay()] }; };
 
-  function raceRow(r, idx) {
+  // これからのレース（1 行）
+  function raceRow(r) {
     const started = r.post_time && new Date(r.post_time) <= new Date();
-    const s = idx?.[r.race_id];
-    let right;
-    if (r.status === "finished") {
-      const k = s?.rec || "ai", st = s?.stakes?.[k], rt = s?.rets?.[k];
-      const badge = (s?.pre === false ? '<span class="chip post">参考</span>' : "") + (s?.ai1_win ? '<span class="hitchip">◎的中</span>' : s?.trio ? '<span class="hitchip">三連複的中</span>' : "");
-      right = `<span class="st st-done">結果</span>${badge}${s?.ai1_pos ? `<span class="rs">AI1位 <b>${esc(s.ai1_pos)}着</b></span>` : ""}${st ? `<span class="rs">${STRAT[k].name} ${roiTag(rt / st)}</span>` : ""}`;
-    } else {
-      right = started ? `<span class="st">発走済み</span>` : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">会員限定</span>`;
-    }
+    const right = started ? `<span class="st">発走済み</span>` : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">ゴールド会員限定</span>`;
     return `<a class="rrow" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rn"><b>${r.race_num ? esc(r.race_num) + "R" : ""}</b><small>${fmtTime(r.post_time)}</small></div>
-      <div class="t"><b>${esc(r.race_name || "")}</b> ${gradeChip(r.grade)}<small class="rmeta">${esc(r.course || "")}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</small></div>
+      <div class="t">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b><small class="rmeta">${esc(r.course || "")}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</small></div>
       <div class="res">${right}</div></a>`;
+  }
+  // 結果の出たレース（カード）：日付・格・1 着・AI の印の着順・買い方の結果がひと目で分かる
+  function resultCard(r, s) {
+    const dt = md2(r.race_date);
+    const best = s?.best;
+    let bet;
+    if (best) bet = `<div class="rc-bet hit"><span class="rc-k">的中した買い方で最高</span><b>${STRAT[best.k]?.name || best.k}</b><span class="rc-roi">${roiTag(best.roi)}</span></div>`;
+    else if (s?.n_bet) bet = `<div class="rc-bet"><span class="rc-k">買い方の結果</span><b>不的中</b><span class="rc-sub">${s.n_bet} つの買い方で購入</span></div>`;
+    else if (s) bet = `<div class="rc-bet"><span class="rc-k">買い方の結果</span><b>見送り</b></div>`;
+    else bet = `<div class="rc-bet"><span class="rc-k">結果</span><b>確定</b></div>`;
+    const ai = s?.ai1_pos ? `<span class="rc-ai ${s.ai1_pos <= 3 ? "on" : ""}">◎ AI予想1位 <b>${s.ai1_pos}着</b></span>` : "";
+    const win = s?.winner ? `<span class="rc-win">1着 <b>${esc(s.winner)}</b>${s.winner_pop ? `<small>（${s.winner_pop}番人気）</small>` : ""}</span>` : "";
+    return `<a class="rcard ${best ? "is-hit" : ""}" href="#/race/${encodeURIComponent(r.race_id)}">
+      <div class="rc-date"><b>${dt.m}/${dt.d}</b><small>${dt.w}</small></div>
+      <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}</div>
+        <div class="rc-meta">${esc(r.course || "")} ${r.race_num ? esc(r.race_num) + "R" : ""}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</div>
+        <div class="rc-res">${win}${ai}</div></div>${bet}</a>`;
   }
   function groupedList(races, idx) {
     if (!races.length) return empty("条件に合うレースがありません。");
     const byDay = new Map();
-    races.forEach((r) => { if (!byDay.has(r.race_date)) byDay.set(r.race_date, new Map()); const m = byDay.get(r.race_date); if (!m.has(r.course)) m.set(r.course, []); m.get(r.course).push(r); });
+    races.forEach((r) => { if (!byDay.has(r.race_date)) byDay.set(r.race_date, []); byDay.get(r.race_date).push(r); });
     let h = "";
-    for (const [d, m] of byDay) {
-      h += `<h3 class="day">${fmtDate(d, true)}</h3>`;
-      for (const [c, rs] of m) {
-        rs.sort((a, b) => (a.race_num || 0) - (b.race_num || 0));
-        h += `<h4 class="course-h">${esc(c || "")}</h4><div class="rlist">${rs.map((r) => raceRow(r, idx)).join("")}</div>`;
-      }
+    for (const [d, rs] of byDay) {
+      rs.sort((a, b) => (a.course || "").localeCompare(b.course || "") || (a.race_num || 0) - (b.race_num || 0));
+      const fin = rs.filter((r) => r.status === "finished"), up = rs.filter((r) => r.status !== "finished");
+      h += `<h3 class="day"><span>${fmtDate(d, true)}</span><small>${rs.length} レース</small></h3>`;
+      if (up.length) h += `<div class="rlist">${up.map((r) => raceRow(r)).join("")}</div>`;
+      if (fin.length) h += `<div class="rcards">${fin.map((r) => resultCard(r, idx?.[r.race_id])).join("")}</div>`;
     }
     return h;
   }
@@ -293,7 +317,8 @@
   function homeDoneList(filter) {
     const f = filter || "all";
     const list = f === "all" ? homeDone : f === "重賞" ? homeDone.filter((r) => /G[123]/.test(r.grade || "")) : homeDone.filter((r) => r.course === f);
-    return list.length ? groupedList(list, homeIdx) : empty("条件に合うレースがありません。");
+    if (!list.length) return empty("条件に合うレースがありません。");
+    return `<div class="rcards">${list.map((r) => resultCard(r, homeIdx[r.race_id])).join("")}</div>`;
   }
   async function viewHome(tok) {
     setNav("home");
@@ -308,27 +333,27 @@
     const nextDay = up[0]?.race_date;
     const upDay = up.filter((r) => r.race_date === nextDay);
     const sl = p.strategies_live || {}, bt = p.strategies_backtest || {};
+    const n = p.n_pre ?? 0;
     const cards = SORDER.map((k) => {
       const s = sl[k] || {}, b = bt[k] || {}, roi = s.stake ? s.ret / s.stake : null;
       return `<a class="scard" href="#/stats" aria-label="${STRAT[k].name}の成績を見る">
         <span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span>
-        <span class="sv">${roi == null ? '<span class="roi wait">—</span>' : roiTag(roi)}</span>${roiBar(roi)}
-        <span class="ss">${s.stake ? `回収率・${num(s.n)}レース・的中率 ${pct(s.hit / s.n, 0)}` : "発走前の記録はまだありません"}</span>
-        ${b.full_roi != null ? `<span class="sb">過去の検証 ${pct(b.full_roi, 0)}</span>` : ""}</a>`;
+        <span class="sv">${roi == null ? '<span class="roi wait">見送り</span>' : roiTag(roi)}</span>${roiBar(roi)}
+        <span class="ss">${s.stake ? `${num(s.n)}レース購入・的中率 ${pct(s.hit / s.n, 0)}` : "条件に合うレースがまだありません"}</span>
+        ${b.full_roi != null ? `<span class="sb">過去10年の検証 ${pct(b.full_roi, 0)}</span>` : ""}</a>`;
     }).join("");
     const courses = [...new Set(done.map((r) => r.course).filter(Boolean))];
     const hasG = done.some((r) => /G[123]/.test(r.grade || ""));
-    const chips = [["all", "すべて"], ...courses.map((c) => [c, c]), ...(hasG ? [["重賞", "重賞"]] : [])]
+    const chips = [["all", "すべて"], ...(hasG ? [["重賞", "重賞"]] : []), ...courses.map((c) => [c, c])]
       .map(([v, l], i) => `<button type="button" class="fchip ${i === 0 ? "on" : ""}" data-act="hf" data-v="${esc(v)}" aria-pressed="${i === 0}">${esc(l)}</button>`).join("");
+    const tipRoi = `公開した ${n} レースで、4 つの買い方どおりに買った場合の回収率（100% で購入額と同じ払戻）。発走前に予想したレースと、`
+      + "そのレースの年より前のデータだけで学習したモデルで予想した検証レースを含みます（どちらも未来の情報は使っていません）。";
     app.innerHTML = `
-      <div class="h-sec"><h2>買い方ごとの回収率</h2><a class="more-link" href="#/stats">詳しく見る ›</a></div>
-      <div class="scards">${cards}</div>
-      <p class="note">回収率は公開したレースでの通算（100% で購入額と同じ払戻）。「過去の検証」は 2016〜2026 年のデータでの通算です。</p>
-      <div class="h-sec"><h2>${nextDay ? `次の開催　${fmtDate(nextDay)}` : "これからのレース"}</h2><a class="more-link" href="#/races?tab=upcoming">すべて見る ›</a></div>
-      ${upDay.length ? groupedList(upDay, idx).replace(/<h3 class="day">.*?<\/h3>/, "") : empty("公開予定の予想はまだありません。")}
-      <div class="h-sec"><h2>最近の結果</h2><a class="more-link" href="#/races?tab=finished">すべて見る ›</a></div>
-      ${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}
-      <div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`;
+      ${blk(`買い方ごとの回収率<small class="bt-sub">公開 ${num(n)} レース</small>`, `<div class="scards">${cards}</div>`, { acc: "stat", tip: tipRoi, top: `<a class="more-link" href="#/stats">成績の詳細 ›</a>` })}
+      ${blk("最近の結果", `${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
+        { acc: "result", tip: "カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です（AI予想1位が勝っても、買い方の買い目が外れることがあります）。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}
+      ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : empty("公開予定の予想はまだありません。"),
+        { acc: "info", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}`;
   }
 
   // ---------------- レース一覧（検索・絞り込み・カレンダー） ----------------
@@ -356,8 +381,7 @@
     const prev = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7), next = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7);
     return `<div class="cal"><div class="cal-h"><button type="button" class="ib" data-act="month" data-v="${prev}" aria-label="前の月">‹</button>
       <b>${y}年${m}月</b><button type="button" class="ib" data-act="month" data-v="${next}" aria-label="次の月">›</button></div>
-      <div class="cal-g"><i>日</i><i>月</i><i>火</i><i>水</i><i>木</i><i>金</i><i>土</i>${cells}</div>
-      <p class="note">● のある日にレースがあります。日付を押すとその日のレースを表示します。</p></div>`;
+      <div class="cal-g"><i>日</i><i>月</i><i>火</i><i>水</i><i>木</i><i>金</i><i>土</i>${cells}</div></div>`;
   }
   async function viewRaces(tok) {
     setNav("races");
@@ -369,12 +393,11 @@
     if (tab === "upcoming" && !f.date) qf.from = todayStr();
     const [races, dates, idx] = await Promise.all([queryRaces(qf), raceDates(month + "-01", monthEnd(month)).catch(() => []), getIndex()]);
     if (tok !== routeTok) return;
-    const tabs = [["upcoming", "これから"], ["finished", "結果"], ["all", "すべて"]]
+    const tabs = [["all", "すべて"], ["upcoming", "これから"], ["finished", "結果"]]
       .map(([k, l]) => `<button type="button" class="tab ${tab === k ? "on" : ""}" data-act="tab" data-v="${k}" aria-pressed="${tab === k}">${l}</button>`).join("");
     const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`;
     const active = ["date", "course", "surface", "grade", "q"].filter((k) => f[k]).length;
-    const hasCond = ["date", "course", "surface", "grade", "q"].some((k) => f[k]);
-    app.innerHTML = `${hasCond ? backBar("条件を指定したレース一覧") : ""}
+    app.innerHTML = `${active ? backBar("条件を指定したレース一覧") : ""}
       <div class="filters" id="filters">
         <div class="tabs" role="group" aria-label="表示するレース">${tabs}</div>
         <form class="frow" id="f-search" role="search">
@@ -401,29 +424,33 @@
   }
 
   // ---------------- レース詳細 ----------------
+  const TIP_AI = "「AI予想」は、AI の能力評価に市場（オッズ）の情報を合わせた最終的な予想で、印（◎○▲△）もこの順です。"
+    + "「能力評価」は、オッズを一切使わずに AI が過去の成績・スピード指数・調教・騎手などから評価した能力の順位です。"
+    + "能力評価の方が人気より高い馬（↑）は、AI が市場と違う見方をしている馬です。";
   function horsesTable(hs, field, posMap) {
-    const hasAi = hs.some((h) => h.p_ai != null);
+    const hasAi = hs.some((h) => h.ai_rank != null);
     const hasPos = posMap && Object.keys(posMap).length;
-    return `<div class="tbl-wrap"><table class="t"><thead><tr>${hasPos ? '<th class="c">着</th>' : ""}<th>印</th><th>馬番</th><th>馬名</th>
-      ${hasAi ? '<th class="r">AI独自</th>' : ""}<th class="r">勝率</th><th class="hide-sm">AI <span style="color:var(--ai)">■</span>／人気 <span style="color:#9C9583">■</span></th>
-      <th class="r">3着内</th><th class="r">人気</th><th class="r">オッズ</th><th class="r hide-sm">期待値</th></tr></thead><tbody>
+    const prank = {};
+    [...hs].sort((a, b) => (b.p || 0) - (a.p || 0)).forEach((h, i) => { prank[h.umaban] = i + 1; });
+    return `<div class="tbl-wrap"><table class="t pred"><thead><tr>${hasPos ? '<th class="c w-pos">着</th>' : ""}<th class="c w-mk">印</th><th class="c w-gate">馬番</th><th>馬名</th>
+      <th class="r">AI予想</th><th class="r">勝率</th>${hasAi ? '<th class="r">能力評価</th>' : ""}<th class="r hide-sm">3着内</th><th class="r">人気</th><th class="r">オッズ</th></tr></thead><tbody>
       ${hs.map((h) => {
-        const q = h.mkt_p ?? (h.odds ? 0.8 / h.odds : null);
         const gap = h.ai_rank && h.pop ? h.pop - h.ai_rank : null;
         const ps = hasPos ? posMap[h.umaban] : null;
         const hit = ps && ps <= 3 && h.mark;
-        return `<tr class="${hit ? "hit" : ""}">${hasPos ? `<td class="c pos ${ps === 1 ? "p1" : ""}">${ps ? ps : "—"}</td>` : ""}<td class="mk ${mkCls(h.mark)}">${esc(h.mark || "")}${hit ? '<span class="hitstamp">的中</span>' : ""}</td><td>${gate(h, field)}</td>
-        <td class="nm">${esc(h.horse)}${gap >= 3 ? ` <span class="diff-up" title="人気より AI の評価が高い">↑</span>` : ""}</td>
-        ${hasAi ? `<td class="r">${h.ai_rank ? h.ai_rank + "位" : "—"}</td>` : ""}
-        <td class="r"><b>${pct(h.p)}</b></td>
-        <td class="hide-sm"><div class="bar2"><i style="width:${Math.min(100, (h.p_ai ?? h.p ?? 0) * 250)}%"></i><b style="width:${Math.min(100, (q || 0) * 250)}%"></b></div></td>
-        <td class="r">${pct(h.p_top3, 0)}</td><td class="r">${h.pop ?? "—"}</td><td class="r">${h.odds ?? "—"}</td>
-        <td class="r hide-sm ${h.ev >= 1 ? "plus" : ""}">${h.ev != null ? h.ev.toFixed(2) : "—"}</td></tr>`;
+        return `<tr class="${hit ? "hit" : ""}">${hasPos ? `<td class="c pos ${ps === 1 ? "p1" : ""}">${ps ? ps : "—"}</td>` : ""}<td class="c mk ${mkCls(h.mark)}">${esc(h.mark || "")}</td><td class="c">${gate(h, field)}</td>
+        <td class="nm">${esc(h.horse)}${hit ? '<span class="hitstamp">的中</span>' : ""}</td>
+        <td class="r"><b>${prank[h.umaban]}位</b></td><td class="r">${pct(h.p)}</td>
+        ${hasAi ? `<td class="r">${h.ai_rank ? h.ai_rank + "位" : "—"}${gap >= 3 ? ' <span class="diff-up" title="人気より能力評価が高い">↑</span>' : ""}</td>` : ""}
+        <td class="r hide-sm">${pct(h.p_top3, 0)}</td><td class="r">${h.pop ?? "—"}</td><td class="r">${h.odds ?? "—"}</td></tr>`;
       }).join("")}
-      </tbody></table></div>
-      <p class="note">AI独自＝オッズを使わない能力の順位。勝率＝AI の評価に市場（オッズ）の情報を合わせた確率。↑＝人気より AI の評価が 3 つ以上高い馬。</p>`;
+      </tbody></table></div>`;
   }
-
+  // 買い目の小さな札（購入・的中・外れ・返還）
+  function ticketPill(t, state) {
+    const st = state === "hit" ? `<em>的中 ${t.ret != null ? yen(t.ret) : ""}</em>` : state === "miss" ? "<em>外れ</em>" : state === "refund" ? "<em>返還</em>" : "";
+    return `<span class="tkp ${state || ""}"><b>${esc(t.type)}</b><span class="num">${esc(t.combo)}</span><small>${yen(t.stake)}</small>${st}</span>`;
+  }
   // 4 つの買い方（レース前）
   function strategyPlans(P) {
     const S = P.strategies;
@@ -431,19 +458,17 @@
     const st = P.strategy_stats || {};
     return `<div class="splans">${SORDER.filter((k) => S[k]).map((k) => {
       const s = S[k], m = STRAT[k], v = st[k];
-      const body = s.skip ? `<p class="skip">見送り</p><p class="note">${esc(s.reason || "")}</p>`
-        : `<table class="t compact"><tbody>${(s.tickets || []).map((t) => `<tr><td><b>${esc(t.type)}</b></td><td class="num">${esc(t.combo)}</td><td class="r">${yen(t.stake)}</td></tr>
-            ${t.reason ? `<tr class="why"><td colspan="3">${esc(t.reason)}</td></tr>` : ""}`).join("")}</tbody></table>
+      const body = s.skip ? `<p class="skip">見送り</p><p class="why1">${esc(s.reason || "")}</p>`
+        : `<div class="buy-h">購入する買い目</div><div class="tkps">${(s.tickets || []).map((t) => ticketPill(t, "")).join("")}</div>
           <div class="pmeta"><span>合計 <b>${yen(s.total)}</b></span>${s.p_any != null ? `<span>的中確率 ${pct(s.p_any, 0)}</span>` : ""}${s.ev != null ? `<span>期待値 ${s.ev.toFixed(2)}</span>` : ""}</div>
-          <p class="note">${esc(s.reason || "")}</p>`;
+          ${(s.tickets || []).some((t) => t.reason) ? `<details class="whyd"><summary>選んだ理由</summary>${(s.tickets || []).map((t) => t.reason ? `<p><b>${esc(t.type)} ${esc(t.combo)}</b>：${esc(t.reason)}</p>` : "").join("")}</details>` : ""}`;
       return `<section class="splan ${P.recommended === k ? "rec" : ""}"><header><b>${m.name}</b><span class="risk r-${m.risk}">リスク${m.risk}</span>${P.recommended === k ? '<span class="chip done">おすすめ</span>' : ""}</header>
-        <p class="ssub">${m.sub}${v?.full_roi != null ? `・過去の検証 ${pct(v.full_roi, 0)}` : v?.test_roi != null ? `・検証 ${pct(v.test_roi, 0)}` : ""}</p>${body}</section>`;
-    }).join("")}</div><p class="note">金額は総資金 10 万円の場合（1 口＝総資金の 0.1%）。期待値は過去の同じ条件の買い目の実績で補正した値です。</p>`;
+        <p class="ssub">${m.sub}${v?.full_roi != null ? `・過去の検証 ${pct(v.full_roi, 0)}` : ""}</p>${body}</section>`;
+    }).join("")}</div>`;
   }
   function oldRec(rec) {
     if (rec.action !== "bet") return `<div class="sheet"><h3>AI の買い方：見送り</h3><p>${esc((rec.reasons || [])[0] || "")}</p></div>`;
-    return `<div class="sheet"><h3>AI の買い方　合計 ${yen(rec.total)}</h3><table class="t compact"><tbody>
-      ${rec.tickets.map((t) => `<tr><td><b>${esc(t.type)}</b></td><td>${esc(t.combo)}</td><td class="r">${yen(t.stake)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="sheet"><h3>AI の買い方　合計 ${yen(rec.total)}</h3><div class="tkps">${rec.tickets.map((t) => ticketPill(t, "")).join("")}</div></div>`;
   }
 
   function slopeChart(result) {
@@ -453,8 +478,8 @@
     const maxR = Math.max(6, ...pick.map((r) => Math.max(r.ai_rank, r.pos)));
     const W = 560, top = 34, rowH = 26, H = top + maxR * rowH + 10, xl = 150, xr = W - 150;
     const y = (k) => top + (k - 0.5) * rowH;
-    let s = `<svg class="slope" viewBox="0 0 ${W} ${H}" role="img" aria-label="AI の予想順位と実際の着順の対応">
-      <text x="${xl}" y="18" text-anchor="end" font-size="12" fill="#6E6A5F">AI の予想順位</text><text x="${xr}" y="18" font-size="12" fill="#6E6A5F">実際の着順</text>`;
+    let s = `<svg class="slope" viewBox="0 0 ${W} ${H}" role="img" aria-label="AI予想の順位と実際の着順の対応">
+      <text x="${xl}" y="18" text-anchor="end" font-size="12" fill="#6E6A5F">AI予想の順位</text><text x="${xr}" y="18" font-size="12" fill="#6E6A5F">実際の着順</text>`;
     for (let k = 1; k <= maxR; k++) {
       s += `<text x="${xl + 20}" y="${y(k) + 4}" font-size="11" text-anchor="middle" fill="#9C9583">${k}</text><text x="${xr - 20}" y="${y(k) + 4}" font-size="11" text-anchor="middle" fill="${k <= 3 ? "#1B1A17" : "#9C9583"}" font-weight="${k <= 3 ? 700 : 400}">${k}</text>`;
     }
@@ -471,57 +496,52 @@
   function hitBanner(h) {
     if (!h) return "";
     const items = [];
-    if (h.ai1_win) items.push('<span class="hb big">◎ AI 1位が 1 着 的中</span>');
-    if (h.exact) items.push('<span class="hb big">AI 上位 3 頭が着順どおり（三連単）</span>');
-    else if (h.trio) items.push('<span class="hb">AI 上位 3 頭で三連複 的中</span>');
-    if (!h.trio && h.ai_top3_in_top3 >= 2) items.push(`<span class="hb">AI 上位 3 頭のうち ${h.ai_top3_in_top3} 頭が 3 着以内</span>`);
-    if (!items.length) items.push(`<span class="hb muted">AI 上位 3 頭のうち 3 着以内は ${h.ai_top3_in_top3} 頭</span>`);
+    if (h.ai1_win) items.push('<span class="hb big">◎ AI予想1位が 1 着</span>');
+    if (h.exact) items.push('<span class="hb big">AI予想の上位 3 頭が着順どおり</span>');
+    else if (h.trio) items.push('<span class="hb">AI予想の上位 3 頭が 1〜3 着を独占</span>');
+    if (!h.trio && h.ai_top3_in_top3 >= 2) items.push(`<span class="hb">AI予想の上位 3 頭のうち ${h.ai_top3_in_top3} 頭が 3 着以内</span>`);
+    if (!items.length) items.push(`<span class="hb muted">AI予想の上位 3 頭のうち 3 着以内は ${h.ai_top3_in_top3} 頭</span>`);
     return `<div class="hitbanner">${items.join("")}</div>`;
   }
   function verdictBlock(result, field) {
     const byRank = {};
     result.forEach((r) => { if (r.ai_rank) byRank[r.ai_rank] = r; });
-    const lab = ["◎ AI 1位", "○ AI 2位", "▲ AI 3位"];
+    const lab = ["◎ AI予想 1位", "○ AI予想 2位", "▲ AI予想 3位"];
     return `<div class="verdict">${[1, 2, 3].map((k) => {
       const r = byRank[k];
       if (!r) return `<div class="vc"><div class="vk">${lab[k - 1]}</div><div class="vh">—</div></div>`;
-      return `<div class="vc ${r.pos && r.pos <= 3 ? "vhit" : ""}">${r.pos && r.pos <= 3 ? '<span class="vstamp">的中</span>' : ""}<div class="vk">${lab[k - 1]}</div><div class="vh">${gate(r, field)} ${esc(r.horse)}</div>
-        <div class="vr ${r.pos === 1 ? "plus" : ""}">${r.pos ? r.pos + "<small>着</small>" : "<small>取消・除外</small>"}</div><div class="vk">${esc(r.pop ?? "-")}番人気・${esc(r.odds ?? "-")}倍</div></div>`;
+      return `<div class="vc ${r.pos && r.pos <= 3 ? "vhit" : ""}"><div class="vk">${lab[k - 1]}</div><div class="vh">${gate(r, field)} ${esc(r.horse)}</div>
+        <div class="vr ${r.pos === 1 ? "plus" : ""}">${r.pos ? r.pos + "<small>着</small>" : "<small>中止</small>"}</div><div class="vk">${esc(r.pop ?? "-")}番人気・${esc(r.odds ?? "-")}倍</div></div>`;
     }).join("")}</div>`;
   }
   function resultTable(result, field) {
-    return `<div class="tbl-wrap"><table class="t"><thead><tr><th>着</th><th>馬番</th><th>馬名</th><th class="r">人気</th><th class="r">オッズ</th><th class="r">AI予想</th><th class="hide-sm">差</th></tr></thead><tbody>
+    return `<div class="tbl-wrap"><table class="t res"><thead><tr><th class="c w-pos">着</th><th class="c w-gate">馬番</th><th>馬名</th><th class="r">人気</th><th class="r">オッズ</th><th class="r">AI予想</th><th class="hide-sm">予想との差</th></tr></thead><tbody>
       ${result.filter((r) => r.pos).sort((a, b) => a.pos - b.pos).slice(0, 8).map((r) => {
         const d = r.ai_rank ? r.ai_rank - r.pos : null;
-        return `<tr class="${r.pos <= 3 && r.ai_rank <= 3 ? "hit" : ""}"><td class="pos ${r.pos === 1 ? "p1" : ""}">${r.pos}</td><td>${gate(r, field)}</td><td class="nm">${esc(r.horse)}</td>
+        return `<tr class="${r.pos <= 3 && r.ai_rank <= 3 ? "hit" : ""}"><td class="c pos ${r.pos === 1 ? "p1" : ""}">${r.pos}</td><td class="c">${gate(r, field)}</td><td class="nm">${esc(r.horse)}</td>
         <td class="r">${esc(r.pop ?? "—")}</td><td class="r">${esc(r.odds ?? "—")}</td><td class="r"><b>${r.ai_rank ? r.ai_rank + "位" : "—"}</b></td>
         <td class="hide-sm muted">${d == null ? "" : d === 0 ? "予想どおり" : d > 0 ? `予想より ${d} つ上` : `予想より ${-d} つ下`}</td></tr>`;
-      }).join("")}</tbody></table></div><p class="note">緑の行は AI の上位 3 頭が 3 着以内に入った馬。</p>`;
+      }).join("")}</tbody></table></div>`;
   }
   function paysTable(pays) {
     const order = ["単勝", "複勝", "枠連", "馬連", "ワイド", "馬単", "三連複", "三連単"];
     const rows = order.filter((k) => pays && pays[k] && pays[k].length);
     if (!rows.length) return "";
-    return `<table class="t pays"><tbody>${rows.map((k) => `<tr><th>${k}</th><td>${pays[k].map((e) => `<span class="num">${e.nums.join("-")}</span>　<b class="num">${num(e.pay)}円</b>`).join("<br>")}</td></tr>`).join("")}</tbody></table>`;
+    return `<table class="t pays"><tbody>${rows.map((k) => `<tr><th>${k}</th><td>${pays[k].map((e) => `<span class="pp"><span class="num">${e.nums.join("-")}</span><b class="num">${num(e.pay)}円</b></span>`).join("")}</td></tr>`).join("")}</tbody></table>`;
   }
-  // 4 つの買い方の収支比較（結果が出たレース）
+  // 4 つの買い方の結果（結果が出たレース）：買った買い目と、的中・外れ・返還がひと目で分かる
   function strategyCompare(V, P) {
     const S = V.strategies;
-    if (!S) return V.settle ? `<p>回収率 ${roiTag(V.settle.ret / V.settle.stake)}</p>` : empty("このレースは買い方の記録がありません。");
+    if (!S) return empty("このレースは買い方の記録がありません。");
     const rec = P?.recommended || V.recommended || "ai";
-    const ks = SORDER.filter((k) => S[k]);
-    const rows = ks.map((k) => {
+    return `<div class="sres">${SORDER.filter((k) => S[k]).map((k) => {
       const s = S[k], plan = P?.strategies?.[k];
       const roi = s.stake ? s.ret / s.stake : null;
       const res = s.skip || !s.stake ? '<span class="res-skip">見送り</span>' : s.ret > 0 ? '<span class="res-hit">的中</span>' : '<span class="res-miss">不的中</span>';
-      const tk = s.skip || !s.stake ? "" : (s.tickets || plan?.tickets || []).map((t) => `<span class="tk ${t.ret > 0 ? "hit" : ""}">${esc(t.type)} ${esc(t.combo)}</span>`).join(" ");
-      return `<tr class="${k === rec ? "rec" : ""}"><td><b>${STRAT[k].name}</b>${k === rec ? ' <span class="chip done">おすすめ</span>' : ""}<div class="tks">${tk}</div></td>
-        <td class="c">${res}</td><td class="r"><b>${roi == null ? "—" : roiTag(roi)}</b></td></tr>`;
-    }).join("");
-    const money = ks.filter((k) => S[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(S[k].stake)}</td><td class="r">${yen(S[k].ret)}</td></tr>`).join("");
-    return `<div class="tbl-wrap"><table class="t scmp"><thead><tr><th>買い方・買い目</th><th class="c">結果</th><th class="r">回収率</th></tr></thead><tbody>${rows}</tbody></table></div>
-      ${money ? `<details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>${money}</tbody></table></div></details>` : ""}
-      <p class="note">すべて発走前に決めた買い目で計算しています（結果を見てから選び直したものではありません）。回収率 100% で購入額と同じ払戻。${V.strategies_note ? esc(V.strategies_note) : ""}</p>`;
+      const tks = s.skip || !s.stake ? "" : (s.tickets || plan?.tickets || []).map((t) => ticketPill(t, t.refund ? "refund" : t.ret == null ? "" : t.ret > 0 ? "hit" : "miss")).join("");
+      return `<div class="sr ${k === rec ? "rec" : ""} ${s.ret > 0 && s.stake ? "is-hit" : ""}"><div class="sr-h"><b>${STRAT[k].name}</b>${k === rec ? '<span class="chip done">おすすめ</span>' : ""}${res}<span class="sr-roi">${roi == null ? "" : roiTag(roi)}</span></div>
+        ${tks ? `<div class="tkps">${tks}</div>` : ""}</div>`;
+    }).join("")}</div>`;
   }
   function factorTable(M, hs, field, posMap) {
     const F = M.factor_names || [], H = M.horses || {};
@@ -531,9 +551,7 @@
       return `<tr class="${ps && ps <= 3 ? "hit" : ""}"><td class="nm">${gate({ umaban: u }, field)} ${esc(x.horse)}${ps ? ` <small class="muted">${ps}着</small>` : ""}</td>
         ${F.map((k) => { const v = x.factors?.[k]; return `<td class="fc ${v >= 70 ? "hi" : ""}" style="--v:${v == null ? 0 : v}" title="${esc(k)} ${v ?? "—"}">${v == null ? "—" : v}</td>`; }).join("")}</tr>`;
     }).join("");
-    return `<div class="tbl-wrap"><table class="t ftab"><thead><tr><th>馬</th>${F.map((k) => `<th class="c" title="${esc(M.factor_help?.[k] || "")}">${esc(k)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
-      <details class="more"><summary>評価要素の意味</summary><div><table class="t compact"><tbody>${F.map((k) => `<tr><th>${esc(k)}</th><td>${esc(M.factor_help?.[k] || "")}</td></tr>`).join("")}</tbody></table>
-      <p class="note">点数は今回の出走馬の中での相対評価（0〜100、100 が最も高い）。色が濃いほど高評価です。</p></div></details>`;
+    return `<div class="tbl-wrap"><table class="t ftab"><thead><tr><th>馬</th>${F.map((k) => `<th class="c" title="${esc(M.factor_help?.[k] || "")}">${esc(k)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function storyCards(M, hs, field, posMap) {
     const H = M.horses || {};
@@ -541,8 +559,8 @@
     const list = order.length ? order : Object.keys(H);
     const card = (u) => { const x = H[u], ps = posMap?.[u];
       return `<article class="story ${ps && ps <= 3 ? "hit" : ""}"><header>${gate({ umaban: u }, field)} <b>${esc(x.horse)}</b>
-        <span class="muted">AI能力 ${x.ai_rank ?? "—"}位・${x.pop ?? "—"}番人気</span>${ps ? `<span class="spos ${ps <= 3 ? "on" : ""}">${ps}着</span>` : ""}</header>
-        <p>${esc(x.story || "")}</p>${(x.strong || []).length ? `<div class="tags">${x.strong.map((k) => `<span class="tag up">${esc(k)}</span>`).join("")}${(x.weak || []).map((k) => `<span class="tag dn">${esc(k)}</span>`).join("")}</div>` : ""}</article>`; };
+        <span class="muted">能力評価 ${x.ai_rank ?? "—"}位・${x.pop ?? "—"}番人気</span>${ps ? `<span class="spos ${ps <= 3 ? "on" : ""}">${ps}着</span>` : ""}</header>
+        <p>${esc(x.story || "")}</p>${(x.strong || []).length || (x.weak || []).length ? `<div class="tags">${(x.strong || []).map((k) => `<span class="tag up">${esc(k)}</span>`).join("")}${(x.weak || []).map((k) => `<span class="tag dn">${esc(k)}</span>`).join("")}</div>` : ""}</article>`; };
     return `<div class="stories">${list.slice(0, 6).map(card).join("")}</div>
       ${list.length > 6 ? `<details class="more"><summary>ほかの ${list.length - 6} 頭の解説</summary><div class="stories">${list.slice(6).map(card).join("")}</div></details>` : ""}`;
   }
@@ -558,7 +576,6 @@
       <div class="sd-row">${prev ? `<a class="ib" href="#/race/${encodeURIComponent(prev.race_id)}" aria-label="前のレース">‹</a>` : '<span class="ib off">‹</span>'}
       <div class="rchips">${mine.map((x) => `<a class="rc ${x.race_id === r.race_id ? "on" : ""}" href="#/race/${encodeURIComponent(x.race_id)}">${esc(x.race_num)}R</a>`).join("")}</div>
       ${next ? `<a class="ib" href="#/race/${encodeURIComponent(next.race_id)}" aria-label="次のレース">›</a>` : '<span class="ib off">›</span>'}</div>
-      <p class="swipe-hint">左右にスワイプで前後のレースへ</p>
       ${courses.length > 1 ? `<div class="sd-c">${courses.map((c) => { const f = list.filter((x) => x.course === c).sort((a, b) => (a.race_num || 0) - (b.race_num || 0)); const pick = f.find((x) => x.race_num === r.race_num) || f[0]; return `<a class="cc ${c === r.course ? "on" : ""}" href="#/race/${encodeURIComponent(pick.race_id)}">${esc(c)}</a>`; }).join("")}</div>` : ""}
     </nav>`;
   }
@@ -574,35 +591,36 @@
     const posMap = {};
     (V?.result || []).forEach((x) => { if (x.pos) posMap[x.umaban] = x.pos; });
     const member = !!state.session || DEMO;
-    let html = backBar(`${fmtDate(r.race_date)} ${r.course || ""} ${r.race_num ? r.race_num + "R" : ""}`, true) + sameDayNav(r, sameDay) + `<div class="race-head"><div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
-      <h1>${esc(r.race_name)} ${gradeChip(r.grade)}</h1><div>${surfChip(r.surface)} <span class="chip">${esc(r.distance)}m</span> <span class="chip">${esc(r.field)}頭</span>
-      ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}${(P?.pre === false || V?.pre === false) ? '<span class="chip post">事後予想（参考）</span>' : ""}</div>
-      ${(P?.pre === false || V?.pre === false) ? `<p class="note postnote">${esc(P?.post_note || "発走後に予想したレース（事後予想・参考）です。通算成績には含めていません。")}</p>` : ""}</div>`;
+    const kind = P?.kind || V?.kind || (P?.pre === false ? "unverified" : "pre");
+    let html = backBar(`${fmtDate(r.race_date)} ${r.course || ""} ${r.race_num ? r.race_num + "R" : ""}`, true) + sameDayNav(r, sameDay) + `<div class="race-head">
+      <div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
+      <h1>${gradeBadge(r.grade)}${esc(r.race_name)}</h1><div class="chips">${surfChip(r.surface)} <span class="chip">${esc(r.distance)}m</span> <span class="chip">${esc(r.field)}頭</span>
+      ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}${kindChip(kind, P?.kind_note)}</div></div>`;
     if (V && V.result) {
       const R = M?.review;
-      html += `<div class="h-sec"><h2>結果</h2><span class="aside">AI の上位 3 頭は何着だったか</span></div>${hitBanner(V.hits)}${verdictBlock(V.result, r.field)}
-        <div class="h-sec"><h2>買い方ごとの結果</h2></div>${R ? strategyCompare({ ...V, strategies: R.strategies, recommended: R.recommended, strategies_note: M.strategies_note }, { ...P, strategies: M.strategies, recommended: M.recommended })
-          : member ? noData() : memberLock("4 つの買い方の結果は会員限定です", "AI推奨・安定型・バランス型・高配当型の買い目と、それぞれの回収率・的中を見られます。")}
-        <div class="cols c2" style="margin-top:12px"><div>${resultTable(V.result, r.field)}</div><div class="sheet">${slopeChart(V.result)}
-        <p class="note">左が AI の予想順位、右が実際の着順。藍＝予想上位 3 頭が 3 着以内、朱＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。</p></div></div>
-        <div class="h-sec"><h2>配当</h2></div>${paysTable(V.pays)}
-        ${R?.review_md ? `<div class="h-sec"><h2>振り返り</h2></div><div class="sheet md">${md(R.review_md)}</div>` : ""}`;
+      html += blk("結果", hitBanner(V.hits) + verdictBlock(V.result, r.field), { acc: "result", tip: "AI予想の上位 3 頭（◎○▲）が実際に何着だったか。緑の枠は 3 着以内に入った馬です。" });
+      html += blk("買い方ごとの結果", R ? strategyCompare({ ...V, strategies: R.strategies, recommended: R.recommended }, { ...P, strategies: M.strategies, recommended: M.recommended })
+        : member ? noData() : memberLock("4 つの買い方の結果は会員限定です", "AI推奨・安定型・バランス型・高配当型で実際に買った買い目と、それぞれの的中・回収率を見られます。"),
+        { acc: "bet", badge: "会員", tip: "4 つの買い方それぞれで購入した買い目と結果。緑の札が的中した買い目、返還は出走取消・除外の馬を含む買い目です。すべて発走前に分かる情報だけで決めた買い目です。" + (M?.strategies_note ? " " + M.strategies_note : "") });
+      html += blk("着順と AI予想", `<div class="cols c2"><div>${resultTable(V.result, r.field)}</div><div class="sheet">${slopeChart(V.result)}</div></div>`,
+        { acc: "result", tip: "右の図は、左が AI予想の順位、右が実際の着順。藍の太線＝予想上位 3 頭が 3 着以内、朱線＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。" });
+      html += blk("配当", paysTable(V.pays), { acc: "pay" });
+      if (R?.review_md) html += blk("振り返り", `<div class="md">${md(R.review_md)}</div>`, { acc: "info", closed: true });
     }
     if (P) {
       const horses = P.horses || [];
-      const body = `<div class="h-sec"><h2>AI の予想</h2><span class="aside">${esc(P.model_version || "")}</span></div>${horsesTable(horses, r.field, V ? posMap : null)}
-        ${P.character?.text ? `<div class="sheet"><h3>レースの性格：${esc(P.character.kind || "")}</h3><p>${esc(P.character.text)}</p></div>` : ""}
-        <div class="h-sec"><h2>買い方と選んだ理由</h2><span class="aside">会員限定</span></div>
-        ${M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
-          : member ? noData() : memberLock("買い方と、その馬を選んだ理由は会員限定です", "4 つの買い方の買い目・金額・期待値と、1 点ごとの選んだ理由を見られます。")}
-        <div class="h-sec"><h2>評価要素の点数</h2><span class="aside">会員限定</span></div>
-        ${M?.horses ? factorTable(M, horses, r.field, V ? posMap : null)
-          : member ? noData() : memberLock("評価要素ごとの点数は会員限定です", "能力・近走・末脚・距離・コース・馬場・展開・騎手・厩舎・血統・状態の 11 項目を、馬ごとに見られます。")}
-        <div class="h-sec"><h2>馬ごとの AI 解説</h2><span class="aside">会員限定</span></div>
-        ${M?.horses ? storyCards(M, horses, r.field, V ? posMap : null)
-          : member ? noData() : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。")}
-        ${M?.preview_md ? `<details class="more"><summary>レース全体の解説</summary><div class="md">${md(M.preview_md)}</div></details>` : ""}`;
-      html += V ? `<details class="more" open><summary>レース前の予想と、評価・解説（発走前の内容）</summary><div>${body}</div></details>` : body;
+      html += blk("AI の予想", horsesTable(horses, r.field, V ? posMap : null)
+        + (P.character?.text ? `<div class="sheet ctext"><b>レースの性格：${esc(P.character.kind || "")}</b>　${esc(P.character.text)}</div>` : ""), { acc: "ai", tip: TIP_AI });
+      html += blk(V ? "買い方（発走前に決めた買い目）" : "買い方と選んだ理由", M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
+        : member ? noData() : memberLock("買い方と、その馬を選んだ理由は会員限定です", "4 つの買い方の買い目・金額・期待値と、1 点ごとの選んだ理由を見られます。"),
+        { acc: "bet", badge: "会員", closed: !!V, tip: "金額は総資金 10 万円の場合（1 口＝総資金の 0.1%）。期待値は、過去の同じ条件の買い目が実際にどれだけ戻ったかで補正した値（1.00 で収支トントン）。" });
+      html += blk("評価要素の点数", M?.horses ? factorTable(M, horses, r.field, V ? posMap : null)
+        : member ? noData() : memberLock("評価要素ごとの点数は会員限定です", "能力・近走・末脚・距離・コース・馬場・展開・騎手・厩舎・血統・状態の 11 項目を、馬ごとに見られます。"),
+        { acc: "ai", badge: "会員", tip: "今回の出走馬の中での相対評価（0〜100、100 が最も高い）。色が濃いほど高評価。" + (M?.factor_help ? " " + Object.entries(M.factor_help).map(([k, v]) => `${k}：${v}`).join("／") : "") });
+      html += blk("馬ごとの AI 解説", M?.horses ? storyCards(M, horses, r.field, V ? posMap : null)
+        : member ? noData() : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。"),
+        { acc: "ai", badge: "会員", tip: "前走・近走の成績、上がり、スピード指数、坂路調教の時計、休み明け、評価要素の強み・弱みから作った解説。発走前に分かる情報だけを使っています。" });
+      if (M?.preview_md) html += blk("レース全体の解説", `<div class="md">${md(M.preview_md)}</div>`, { acc: "info", closed: true, badge: "会員" });
     } else if (!V) {
       const t = await getTeaser(id);
       if (tok !== routeTok) return;
@@ -624,56 +642,53 @@
     const pub = perf?.payload || {};
     const p = det || pub;
     const sl = p.strategies_live || {}, sb2 = det ? (p.strategies_backtest || {}) : {};
-    let html = `<div class="h-sec"><h2>買い方ごとの通算成績</h2><span class="aside">発走前に予想して公開したレースだけ・外れも含めて全件</span></div>`;
-    const liveRows = (p.n_pre ?? 1) > 0 ? SORDER.filter((k) => sl[k]) : [];
-    html += liveRows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm"></th></tr></thead><tbody>
-      ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">これまでのレースはすべて見送り（期待値が基準に届かなかったため）</td></tr>`;
+    const n = p.n_pre ?? 0;
+    const tipPub = `公開した ${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・検証 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
+      + "検証レースは、そのレースの年より前のデータだけで学習したモデルで予想したもので、未来の情報は使っていません。外れも含めて全件を集計しています。";
+    const liveRows = n > 0 ? SORDER.filter((k) => sl[k]) : [];
+    let html = blk(`公開レースの通算成績<small class="bt-sub">${num(n)} レース</small>`, liveRows.length ? `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm w-bar"></th></tr></thead><tbody>
+      ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">すべて見送り（期待値が基準に届かなかったため）</td></tr>`;
         return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td class="r">${num(s.n)}</td><td class="r">${pct(s.hit / s.n, 0)}</td><td class="r"><b>${roiTag(roi, 1)}</b></td><td class="hide-sm">${roiBar(roi)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>
-      ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>
-      ${p.strategies_live_note ? `<p class="note">${esc(p.strategies_live_note)}</p>` : ""}
-      ${Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3>回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
-      : empty("発走前に予想して公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。");
+      ${det ? `<details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>
+      ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+      ${det && Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3 class="h3s">回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
+      : empty("公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。"), { acc: "stat", tip: tipPub });
     const sa = p.strategies_after || {};
     if (SORDER.some((k) => sa[k]?.stake)) {
-      html += `<div class="h-sec"><h2>参考：発走後に予想したレース</h2><span class="aside">${num(p.n_post || 0)} レース・通算成績には含めない</span></div>
-        <div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th></tr></thead><tbody>
+      html += blk(`参考<small class="bt-sub">${num(p.n_post || 0)} レース</small>`, `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th></tr></thead><tbody>
         ${SORDER.map((k) => { const x = sa[k] || {}; return x.stake ? `<tr><td><b>${STRAT[k].name}</b></td><td class="r">${num(x.n)}</td><td class="r">${pct(x.hit / x.n, 0)}</td><td class="r">${roiTag(x.ret / x.stake, 1)}</td></tr>`
-          : `<tr><td><b>${STRAT[k].name}</b></td><td colspan="3" class="muted">すべて見送り</td></tr>`; }).join("")}</tbody></table></div>
-        <p class="note">${esc(p.strategies_after_note || "")}</p>`;
+          : `<tr><td><b>${STRAT[k].name}</b></td><td colspan="3" class="muted">すべて見送り</td></tr>`; }).join("")}</tbody></table></div>`,
+        { acc: "info", closed: true, tip: p.strategies_after_note || "" });
     }
     if (!det) {
       const bt = pub.strategies_backtest || {};
-      html += `<div class="h-sec"><h2>過去データでの検証</h2></div>
-        <div class="scards">${SORDER.filter((k) => bt[k]).map((k) => `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(bt[k].full_roi)}</span>${roiBar(bt[k].full_roi)}<span class="ss">2016〜2026 年の通算回収率</span></div>`).join("")}</div>
-        ${memberLock("詳しい検証結果は会員限定です", "年ごとの回収率、選択期間と検証期間の比較、信頼区間、予想の精度（人気順との比較）などを見られます。")}`;
+      html += blk("過去10年の検証", `<div class="scards">${SORDER.filter((k) => bt[k]).map((k) => `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(bt[k].full_roi)}</span>${roiBar(bt[k].full_roi)}<span class="ss">2016〜2026 年の通算回収率</span></div>`).join("")}</div>
+        ${memberLock("詳しい検証結果は会員限定です", "年ごとの回収率、選択期間と検証期間の比較、信頼区間、予想の精度（人気順との比較）などを見られます。")}`, { acc: "stat" });
     }
     if (Object.keys(sb2).length) {
-      html += `<div class="h-sec"><h2>過去データでの検証</h2><span class="aside">${esc(p.strategies_backtest_period || "")}</span></div>
-        <div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間<br><small>検証</small></th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
+      html += blk("過去10年の検証", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間</th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
         ${SORDER.filter((k) => sb2[k]).map((k) => { const s = sb2[k]; return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${esc(s.rule || "")}</div></td><td class="r">${pct(s.coverage, 0)}</td><td class="r">${pct(s.hit_rate, 0)}</td>
-          <td class="r ${roiCls(s.dev_roi)}">${pct(s.dev_roi)}</td><td class="r ${roiCls(s.test_roi)}"><b>${pct(s.test_roi)}</b></td><td class="r ${roiCls(s.full_roi)}">${pct(s.full_roi)}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
-        </tbody></table></div><div class="sheet" style="margin-top:12px"><h3>年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>
-        <p class="note">${esc(p.strategies_backtest_note || "")}</p>`;
+          <td class="r">${roiTag(s.dev_roi, 1)}</td><td class="r"><b>${roiTag(s.test_roi, 1)}</b></td><td class="r">${roiTag(s.full_roi, 1)}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
+        </tbody></table></div><div class="sheet" style="margin-top:12px"><h3 class="h3s">年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>`,
+        { acc: "stat", badge: "会員", tip: (p.strategies_backtest_period || "") + "。" + (p.strategies_backtest_note || "") });
     }
     const acc = det ? p.accuracy : null;
     if (acc && acc.rows) {
-      html += `<div class="h-sec"><h2>予想の精度</h2><span class="aside">${esc(acc.period || "")}</span></div>
-        <div class="tbl-wrap"><table class="t"><thead><tr><th>指標</th><th class="r">AI（統合）</th><th class="r">AI独自</th><th class="r">人気順</th></tr></thead><tbody>
-        ${acc.rows.map((x) => `<tr><td>${esc(x.label)}<div class="muted">${esc(x.note || "")}</div></td><td class="r"><b>${x.fmt === "n" ? (x.ai ?? 0).toFixed(2) : pct(x.ai)}</b></td><td class="r">${x.ai_only == null ? "—" : x.fmt === "n" ? x.ai_only.toFixed(2) : pct(x.ai_only)}</td>
+      html += blk("予想の精度", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>指標</th><th class="r">AI予想</th><th class="r">能力評価</th><th class="r">人気順</th></tr></thead><tbody>
+        ${acc.rows.map((x) => `<tr><td>${esc(x.label)}${tip(x.note)}</td><td class="r"><b>${x.fmt === "n" ? (x.ai ?? 0).toFixed(2) : pct(x.ai)}</b></td><td class="r">${x.ai_only == null ? "—" : x.fmt === "n" ? x.ai_only.toFixed(2) : pct(x.ai_only)}</td>
           <td class="r">${x.fmt === "n" ? (x.mkt ?? 0).toFixed(2) : pct(x.mkt)}</td></tr>`).join("")}
-        </tbody></table></div>`;
+        </tbody></table></div>`, { acc: "ai", badge: "会員", tip: (acc.period || "") + "。" + TIP_AI });
     }
-    html += `<details class="more"><summary>この成績の読み方</summary><div><p>回収率 100% が収支トントンです。JRA の払戻率は券種により 70〜80% で、全馬券を買い続けると長期では 70〜80% 程度に収束します。
-      成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。過去の検証は、その年より前のデータだけで作ったモデルと買い方で計算しています。</p></div></details>`;
+    html += blk("この成績の読み方", `<p>回収率 100% が収支トントンです。JRA の払戻率は券種により 70〜80% で、全馬券を買い続けると長期では 70〜80% 程度に収束します。
+      成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。過去の検証は、その年より前のデータだけで作ったモデルと買い方で計算しています。</p>`, { acc: "info", closed: true });
     app.innerHTML = html;
-    const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#3F6B3A", high: "#B8202B" };
-    const rows = Object.values(idx).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
-    if (rows.length) {
-      const acc = {}, ser = {};
+    const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#2E7D32", high: "#B8202B" };
+    const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified").sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+    if (rows.length && det) {
+      const accm = {}, ser = {};
       rows.forEach((x) => SORDER.forEach((k) => {
-        const a = acc[k] || (acc[k] = { s: 0, r: 0 });
+        const a = accm[k] || (accm[k] = { s: 0, r: 0 });
         a.s += x.stakes?.[k] || 0; a.r += x.rets?.[k] || 0;
         (ser[k] || (ser[k] = [])).push(a.s ? Math.round((a.r / a.s) * 1000) / 10 : null);
       }));
@@ -719,7 +734,7 @@
   function viewAbout() {
     setNav("about");
     app.innerHTML = `<div class="h-sec"><h2>見方</h2></div><div class="steps">
-      <div class="sheet"><div><h3>AI独自と勝率</h3><p>「AI独自」はオッズを使わず、スピード指数・上がり・近走・適性・調教・騎手などから出した能力の順位。「勝率」はそれに市場（オッズ）の情報を合わせた確率です。</p></div></div>
+      <div class="sheet"><div><h3>AI予想と能力評価</h3><p><b>AI予想</b>：能力評価に市場（オッズ）の情報を合わせた最終的な予想。印（◎○▲△）と勝率はこの予想です。<br><b>能力評価</b>：オッズを一切使わず、スピード指数・上がり・近走・適性・調教・騎手などから AI が評価した能力の順位。人気より能力評価が高い馬は、AI が市場と違う見方をしている馬です。</p></div></div>
       <div class="sheet"><div><h3>4 つの買い方</h3><p><b>AI推奨</b>：統合の期待値と AI 能力評価の期待値の両方が基準を超えた買い目だけを最大 3 点。無ければ見送り。<b>安定型</b>：複勝・ワイド中心で当たりやすさ重視。<b>バランス型</b>：毎レース期待値が最も高い買い目。<b>高配当型</b>：三連複・馬連の高配当を最大 3 点。</p></div></div>
       <div class="sheet"><div><h3>期待値</h3><p>1.00 で長期的に収支トントン。過去の同じ条件の買い目が実際にどれだけ戻ったかで補正しています。</p></div></div>
       <div class="sheet"><div><h3>会員の種類</h3><div class="tbl-wrap"><table class="t compact"><thead><tr><th></th><th class="c">ゲスト</th><th class="c">無料会員</th><th class="c">ゴールド会員</th></tr></thead><tbody>
@@ -728,7 +743,8 @@
         <tr><td>4 つの買い方・選んだ理由・買い方ごとの結果</td><td class="c">—</td><td class="c">○</td><td class="c">○</td></tr>
         <tr><td>詳しい成績・検証結果</td><td class="c">—</td><td class="c">○</td><td class="c">○</td></tr>
         <tr><td>発走前の予想・買い方・解説</td><td class="c">—</td><td class="c">—</td><td class="c">○</td></tr></tbody></table></div></div></div>
-      <div class="sheet"><div><h3>答え合わせ</h3><p>結果が出たら、AI の上位 3 頭の着順と、4 つの買い方それぞれの収支を表示します。外れたレースもそのまま残します。</p></div></div></div>`;
+      <div class="sheet"><div><h3>検証レース</h3><p>発走後に予想したレースは、そのレースの年より前のデータだけで学習したモデル（このレースの結果を学習に使っていないモデル）で予想し直しています。出走馬・確定オッズ・過去の成績など、発走前に分かる情報だけを使うため、未来の情報は含みません。</p></div></div>
+      <div class="sheet"><div><h3>答え合わせ</h3><p>結果が出たら、AI予想の上位 3 頭の着順と、4 つの買い方それぞれの結果を表示します。外れたレースもそのまま残します。</p></div></div></div>`;
   }
 
   // ---------------- ルーター（最後の操作だけを描画） ----------------
@@ -770,6 +786,7 @@
   // ---------------- 操作（document に 1 つだけ登録） ----------------
   let searchTimer = null;
   document.addEventListener("click", async (e) => {
+    if (!e.target.closest(".tipw")) document.querySelectorAll(".tipc:not([hidden])").forEach((x) => { x.hidden = true; });
     const el = e.target.closest("[data-act]");
     if (!el || el.tagName === "SELECT" || el.tagName === "INPUT") return;
     const act = el.dataset.act, f = parseQuery();
@@ -780,6 +797,13 @@
     else if (act === "more") { setQuery({ ...f, limit: String(Number(f.limit || 120) + 120) }); }
     else if (act === "retry") { clearCache(); scheduleRoute(); }
     else if (act === "back") { goBack(); }
+    else if (act === "tip") {
+      e.preventDefault(); e.stopPropagation();
+      const c = el.nextElementSibling, open = c.hidden;
+      document.querySelectorAll(".tipc").forEach((x) => { x.hidden = true; });
+      document.querySelectorAll(".tipb").forEach((x) => x.setAttribute("aria-expanded", "false"));
+      c.hidden = !open; el.setAttribute("aria-expanded", String(open));
+    }
     else if (act === "hf") {
       document.querySelectorAll(".fchip").forEach((b) => { const on = b === el; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
       const box = document.getElementById("home-done");
