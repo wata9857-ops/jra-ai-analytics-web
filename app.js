@@ -248,6 +248,9 @@
       <summary><span class="bt">${title}</span>${o.badge ? `<span class="bbadge">${o.badge}</span>` : ""}${tip(o.tip)}<span class="bchev" aria-hidden="true"></span></summary>
       <div class="blk-b">${o.top ? `<div class="blk-top">${o.top}</div>` : ""}${body}</div></details>`;
   }
+  // 「発走後の結果」と「発走前の予想」の境目
+  const divider = (kind, title, sub) => `<div class="phase phase-${kind}" role="separator"><span class="ph-ic" aria-hidden="true">${kind === "pre" ? "◀" : "▶"}</span>
+    <span class="ph-t"><b>${esc(title)}</b><small>${esc(sub || "")}</small></span><span class="ph-tag">${kind === "pre" ? "発走前" : "発走後"}</span></div>`;
   const gradeBadge = (g) => {
     if (!g) return "";
     const k = /G1/.test(g) ? "g1" : /G2/.test(g) ? "g2" : /G3/.test(g) ? "g3" : "op";
@@ -350,10 +353,10 @@
       + "そのレースの年より前のデータだけで学習したモデルで予想した検証レースを含みます（どちらも未来の情報は使っていません）。";
     app.innerHTML = `
       ${blk(`買い方ごとの回収率<small class="bt-sub">公開 ${num(n)} レース</small>`, `<div class="scards">${cards}</div>`, { acc: "stat", tip: tipRoi, top: `<a class="more-link" href="#/stats">成績の詳細 ›</a>` })}
-      ${blk("最近の結果", `${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
-        { acc: "result", tip: "カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です（AI予想1位が勝っても、買い方の買い目が外れることがあります）。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}
       ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : empty("公開予定の予想はまだありません。"),
-        { acc: "info", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}`;
+        { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
+      ${blk("最近の結果", `${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
+        { acc: "result", tip: "カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です（AI予想1位が勝っても、買い方の買い目が外れることがあります）。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
   }
 
   // ---------------- レース一覧（検索・絞り込み・カレンダー） ----------------
@@ -451,6 +454,19 @@
     const st = state === "hit" ? `<em>的中 ${t.ret != null ? yen(t.ret) : ""}</em>` : state === "miss" ? "<em>外れ</em>" : state === "refund" ? "<em>返還</em>" : "";
     return `<span class="tkp ${state || ""}"><b>${esc(t.type)}</b><span class="num">${esc(t.combo)}</span><small>${yen(t.stake)}</small>${st}</span>`;
   }
+  // 買い目 1 点と「選んだ理由」（タップで開く。理由は実際の予想の数字から作った文章）
+  function ticketWhy(t) {
+    const w = t.why;
+    if (!w && !t.reason) return `<div class="tkw plain">${ticketPill(t, "")}</div>`;
+    const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
+    const inner = !w ? `<p class="tkw-head">${esc(t.reason)}</p>` : `<p class="tkw-head">${esc(w.head)}</p>
+      ${w.points?.length ? `<dl class="tkw-pts">${w.points.map((p) => `<div><dt>${esc(p.k)}</dt><dd><b>${esc(p.v)}</b><small>${esc(p.n || "")}</small></dd></div>`).join("")}</dl>` : ""}
+      ${w.horses?.length ? `<h5>この買い目の馬</h5><ul class="tkw-l">${li(w.horses)}</ul>` : ""}
+      ${w.choice?.length ? `<h5>ほかの買い目ではなく、これを選んだ理由</h5><ul class="tkw-l">${li(w.choice)}</ul>` : ""}
+      <div class="tkw-mr">${w.merits?.length ? `<div class="mer"><h5>良い点</h5><ul>${li(w.merits)}</ul></div>` : ""}${w.risks?.length ? `<div class="rsk"><h5>注意点（リスク）</h5><ul>${li(w.risks)}</ul></div>` : ""}</div>
+      <p class="tkw-note">数字はすべてレース前の AI の予想とオッズから計算したものです。期待値は過去の平均で、1 レースの結果を約束するものではありません。</p>`;
+    return `<details class="tkw"><summary>${ticketPill(t, "")}<span class="tkw-btn"><span class="o">選んだ理由を見る</span><span class="c">閉じる</span><i aria-hidden="true"></i></span></summary><div class="tkw-b">${inner}</div></details>`;
+  }
   // 4 つの買い方（レース前）
   function strategyPlans(P) {
     const S = P.strategies;
@@ -458,10 +474,10 @@
     const st = P.strategy_stats || {};
     return `<div class="splans">${SORDER.filter((k) => S[k]).map((k) => {
       const s = S[k], m = STRAT[k], v = st[k];
-      const body = s.skip ? `<p class="skip">見送り</p><p class="why1">${esc(s.reason || "")}</p>`
-        : `<div class="buy-h">購入する買い目</div><div class="tkps">${(s.tickets || []).map((t) => ticketPill(t, "")).join("")}</div>
+      const body = s.skip ? `<p class="skip">見送り</p><p class="why1">${esc(s.why || s.reason || "")}</p>`
+        : `<div class="buy-h">購入する買い目<small>（タップで選んだ理由）</small></div><div class="tkws">${(s.tickets || []).map((t) => ticketWhy(t)).join("")}</div>
           <div class="pmeta"><span>合計 <b>${yen(s.total)}</b></span>${s.p_any != null ? `<span>的中確率 ${pct(s.p_any, 0)}</span>` : ""}${s.ev != null ? `<span>期待値 ${s.ev.toFixed(2)}</span>` : ""}</div>
-          ${(s.tickets || []).some((t) => t.reason) ? `<details class="whyd"><summary>選んだ理由</summary>${(s.tickets || []).map((t) => t.reason ? `<p><b>${esc(t.type)} ${esc(t.combo)}</b>：${esc(t.reason)}</p>` : "").join("")}</details>` : ""}`;
+          ${s.why ? `<p class="swhy">${esc(s.why)}</p>` : ""}`;
       return `<section class="splan ${P.recommended === k ? "rec" : ""}"><header><b>${m.name}</b><span class="risk r-${m.risk}">リスク${m.risk}</span>${P.recommended === k ? '<span class="chip done">おすすめ</span>' : ""}</header>
         <p class="ssub">${m.sub}${v?.full_roi != null ? `・過去の検証 ${pct(v.full_roi, 0)}` : ""}</p>${body}</section>`;
     }).join("")}</div>`;
@@ -598,17 +614,19 @@
       ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}${kindChip(kind, P?.kind_note)}</div></div>`;
     if (V && V.result) {
       const R = M?.review;
+      html += divider("post", "レース結果と振り返り", "発走後に分かった結果と、その分析");
       html += blk("結果", hitBanner(V.hits) + verdictBlock(V.result, r.field), { acc: "result", tip: "AI予想の上位 3 頭（◎○▲）が実際に何着だったか。緑の枠は 3 着以内に入った馬です。" });
       html += blk("買い方ごとの結果", R ? strategyCompare({ ...V, strategies: R.strategies, recommended: R.recommended }, { ...P, strategies: M.strategies, recommended: M.recommended })
         : member ? noData() : memberLock("4 つの買い方の結果は会員限定です", "AI推奨・安定型・バランス型・高配当型で実際に買った買い目と、それぞれの的中・回収率を見られます。"),
         { acc: "bet", badge: "会員", tip: "4 つの買い方それぞれで購入した買い目と結果。緑の札が的中した買い目、返還は出走取消・除外の馬を含む買い目です。すべて発走前に分かる情報だけで決めた買い目です。" + (M?.strategies_note ? " " + M.strategies_note : "") });
       html += blk("着順と AI予想", `<div class="cols c2"><div>${resultTable(V.result, r.field)}</div><div class="sheet">${slopeChart(V.result)}</div></div>`,
-        { acc: "result", tip: "右の図は、左が AI予想の順位、右が実際の着順。藍の太線＝予想上位 3 頭が 3 着以内、朱線＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。" });
-      html += blk("配当", paysTable(V.pays), { acc: "pay" });
-      if (R?.review_md) html += blk("振り返り", `<div class="md">${md(R.review_md)}</div>`, { acc: "info", closed: true });
+        { acc: "rank", tip: "右の図は、左が AI予想の順位、右が実際の着順。藍の太線＝予想上位 3 頭が 3 着以内、朱線＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。" });
+      html += blk("配当", paysTable(V.pays), { acc: "pay", closed: true });
+      if (R?.review_md) html += blk("振り返り", `<div class="md">${md(R.review_md)}</div>`, { acc: "review", closed: true });
     }
     if (P) {
       const horses = P.horses || [];
+      html += divider("pre", "発走前の AI 予想", V ? "ここから下は、レース前に分かっていた情報だけで作った予想です" : "レース前に分かっている情報だけで作った予想");
       html += blk("AI の予想", horsesTable(horses, r.field, V ? posMap : null)
         + (P.character?.text ? `<div class="sheet ctext"><b>レースの性格：${esc(P.character.kind || "")}</b>　${esc(P.character.text)}</div>` : ""), { acc: "ai", tip: TIP_AI });
       html += blk(V ? "買い方（発走前に決めた買い目）" : "買い方と選んだ理由", M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
@@ -616,11 +634,11 @@
         { acc: "bet", badge: "会員", closed: !!V, tip: "金額は総資金 10 万円の場合（1 口＝総資金の 0.1%）。期待値は、過去の同じ条件の買い目が実際にどれだけ戻ったかで補正した値（1.00 で収支トントン）。" });
       html += blk("評価要素の点数", M?.horses ? factorTable(M, horses, r.field, V ? posMap : null)
         : member ? noData() : memberLock("評価要素ごとの点数は会員限定です", "能力・近走・末脚・距離・コース・馬場・展開・騎手・厩舎・血統・状態の 11 項目を、馬ごとに見られます。"),
-        { acc: "ai", badge: "会員", tip: "今回の出走馬の中での相対評価（0〜100、100 が最も高い）。色が濃いほど高評価。" + (M?.factor_help ? " " + Object.entries(M.factor_help).map(([k, v]) => `${k}：${v}`).join("／") : "") });
+        { acc: "factor", badge: "会員", closed: true, tip: "今回の出走馬の中での相対評価（0〜100、100 が最も高い）。色が濃いほど高評価。" + (M?.factor_help ? " " + Object.entries(M.factor_help).map(([k, v]) => `${k}：${v}`).join("／") : "") });
       html += blk("馬ごとの AI 解説", M?.horses ? storyCards(M, horses, r.field, V ? posMap : null)
         : member ? noData() : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。"),
-        { acc: "ai", badge: "会員", tip: "前走・近走の成績、上がり、スピード指数、坂路調教の時計、休み明け、評価要素の強み・弱みから作った解説。発走前に分かる情報だけを使っています。" });
-      if (M?.preview_md) html += blk("レース全体の解説", `<div class="md">${md(M.preview_md)}</div>`, { acc: "info", closed: true, badge: "会員" });
+        { acc: "story", badge: "会員", closed: true, tip: "前走・近走の成績、上がり、スピード指数、坂路調教の時計、休み明け、評価要素の強み・弱みから作った解説。発走前に分かる情報だけを使っています。" });
+      if (M?.preview_md) html += blk("レース全体の解説", `<div class="md">${md(M.preview_md)}</div>`, { acc: "story", closed: true, badge: "会員" });
     } else if (!V) {
       const t = await getTeaser(id);
       if (tok !== routeTok) return;
@@ -803,6 +821,7 @@
       document.querySelectorAll(".tipc").forEach((x) => { x.hidden = true; });
       document.querySelectorAll(".tipb").forEach((x) => x.setAttribute("aria-expanded", "false"));
       c.hidden = !open; el.setAttribute("aria-expanded", String(open));
+      if (open) placeTip(el, c);
     }
     else if (act === "hf") {
       document.querySelectorAll(".fchip").forEach((b) => { const on = b === el; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
@@ -855,6 +874,27 @@
     }, 500);
   });
 
+  // 説明の吹き出しを、画面の端で切れない位置に置く（固定配置で、左右・上下を画面内に収める）
+  function placeTip(btn, box) {
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight, m = 12;
+    const w = Math.min(360, vw - m * 2);
+    box.style.width = w + "px";
+    const b = btn.getBoundingClientRect();
+    const left = Math.max(m, Math.min(b.left + b.width / 2 - w / 2, vw - w - m));
+    box.style.left = left + "px";
+    box.style.setProperty("--ax", Math.max(14, Math.min(w - 14, b.left + b.width / 2 - left)) + "px");
+    const h = box.offsetHeight;
+    const below = b.bottom + 10 + h <= vh - m || b.top - 10 - h < m;
+    box.classList.toggle("up", !below);
+    box.style.top = (below ? b.bottom + 10 : b.top - 10 - h) + "px";
+    box.style.maxHeight = (vh - m * 2) + "px";
+  }
+  const closeTips = () => {
+    document.querySelectorAll(".tipc:not([hidden])").forEach((x) => { x.hidden = true; });
+    document.querySelectorAll(".tipb[aria-expanded=true]").forEach((x) => x.setAttribute("aria-expanded", "false"));
+  };
+  window.addEventListener("scroll", closeTips, { passive: true });
+  window.addEventListener("resize", closeTips);
   // スワイプ：レース詳細＝前後のレース、日付を選んだ一覧＝前日・翌日、それ以外＝画面下のタブの順に移動
   //   表やカレンダーなど横に動かす部品の上、画面の端（iPhone の「戻る」操作と重なる）から始まる操作は対象外
   const TABS = ["#/", "#/races", "#/stats", "#/account"];
