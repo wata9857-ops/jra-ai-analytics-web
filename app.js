@@ -186,6 +186,9 @@
     if (error) return null;
     return data?.payload || null;
   }));
+  // ログインしているのに会員用のデータを読めなかったとき（通信の失敗・同期待ち）
+  const noData = () => `<div class="sheet muted">このレースの詳しいデータを読み込めませんでした。時間をおいて再度お試しください。
+    <button type="button" class="linkbtn" data-act="retry">再読み込み</button></div>`;
   // 会員限定の部分（未ログインのときに代わりに表示）
   function memberLock(title, what) {
     return `<div class="mlock"><div class="mlock-ic" aria-hidden="true">🔒</div><div><b>${esc(title)}</b><p>${esc(what)}</p>
@@ -260,7 +263,7 @@
     let right;
     if (r.status === "finished") {
       const k = s?.rec || "ai", st = s?.stakes?.[k], rt = s?.rets?.[k];
-      const badge = s?.ai1_win ? '<span class="hitchip">◎的中</span>' : s?.trio ? '<span class="hitchip">三連複的中</span>' : "";
+      const badge = (s?.pre === false ? '<span class="chip post">参考</span>' : "") + (s?.ai1_win ? '<span class="hitchip">◎的中</span>' : s?.trio ? '<span class="hitchip">三連複的中</span>' : "");
       right = `<span class="st st-done">結果</span>${badge}${s?.ai1_pos ? `<span class="rs">AI1位 <b>${esc(s.ai1_pos)}着</b></span>` : ""}${st ? `<span class="rs">${STRAT[k].name} ${roiTag(rt / st)}</span>` : ""}`;
     } else {
       right = started ? `<span class="st">発走済み</span>` : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">会員限定</span>`;
@@ -310,7 +313,7 @@
       return `<a class="scard" href="#/stats" aria-label="${STRAT[k].name}の成績を見る">
         <span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span>
         <span class="sv">${roi == null ? '<span class="roi wait">—</span>' : roiTag(roi)}</span>${roiBar(roi)}
-        <span class="ss">${s.stake ? `回収率・${num(s.n)}レース・的中率 ${pct(s.hit / s.n, 0)}` : "まだ購入したレースはありません"}</span>
+        <span class="ss">${s.stake ? `回収率・${num(s.n)}レース・的中率 ${pct(s.hit / s.n, 0)}` : "発走前の記録はまだありません"}</span>
         ${b.full_roi != null ? `<span class="sb">過去の検証 ${pct(b.full_roi, 0)}</span>` : ""}</a>`;
     }).join("");
     const courses = [...new Set(done.map((r) => r.course).filter(Boolean))];
@@ -573,12 +576,13 @@
     const member = !!state.session || DEMO;
     let html = backBar(`${fmtDate(r.race_date)} ${r.course || ""} ${r.race_num ? r.race_num + "R" : ""}`, true) + sameDayNav(r, sameDay) + `<div class="race-head"><div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
       <h1>${esc(r.race_name)} ${gradeChip(r.grade)}</h1><div>${surfChip(r.surface)} <span class="chip">${esc(r.distance)}m</span> <span class="chip">${esc(r.field)}頭</span>
-      ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}</div></div>`;
+      ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}${(P?.pre === false || V?.pre === false) ? '<span class="chip post">事後予想（参考）</span>' : ""}</div>
+      ${(P?.pre === false || V?.pre === false) ? `<p class="note postnote">${esc(P?.post_note || "発走後に予想したレース（事後予想・参考）です。通算成績には含めていません。")}</p>` : ""}</div>`;
     if (V && V.result) {
       const R = M?.review;
       html += `<div class="h-sec"><h2>結果</h2><span class="aside">AI の上位 3 頭は何着だったか</span></div>${hitBanner(V.hits)}${verdictBlock(V.result, r.field)}
         <div class="h-sec"><h2>買い方ごとの結果</h2></div>${R ? strategyCompare({ ...V, strategies: R.strategies, recommended: R.recommended, strategies_note: M.strategies_note }, { ...P, strategies: M.strategies, recommended: M.recommended })
-          : memberLock("4 つの買い方の結果は会員限定です", "AI推奨・安定型・バランス型・高配当型の買い目と、それぞれの回収率・的中を見られます。")}
+          : member ? noData() : memberLock("4 つの買い方の結果は会員限定です", "AI推奨・安定型・バランス型・高配当型の買い目と、それぞれの回収率・的中を見られます。")}
         <div class="cols c2" style="margin-top:12px"><div>${resultTable(V.result, r.field)}</div><div class="sheet">${slopeChart(V.result)}
         <p class="note">左が AI の予想順位、右が実際の着順。藍＝予想上位 3 頭が 3 着以内、朱＝予想 4 位以下から 3 着以内、点線＝予想上位だが 4 着以下。</p></div></div>
         <div class="h-sec"><h2>配当</h2></div>${paysTable(V.pays)}
@@ -590,13 +594,13 @@
         ${P.character?.text ? `<div class="sheet"><h3>レースの性格：${esc(P.character.kind || "")}</h3><p>${esc(P.character.text)}</p></div>` : ""}
         <div class="h-sec"><h2>買い方と選んだ理由</h2><span class="aside">会員限定</span></div>
         ${M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
-          : member ? empty("このレースの買い方はまだありません。") : memberLock("買い方と、その馬を選んだ理由は会員限定です", "4 つの買い方の買い目・金額・期待値と、1 点ごとの選んだ理由を見られます。")}
+          : member ? noData() : memberLock("買い方と、その馬を選んだ理由は会員限定です", "4 つの買い方の買い目・金額・期待値と、1 点ごとの選んだ理由を見られます。")}
         <div class="h-sec"><h2>評価要素の点数</h2><span class="aside">会員限定</span></div>
         ${M?.horses ? factorTable(M, horses, r.field, V ? posMap : null)
-          : member ? empty("このレースの評価要素はまだありません。") : memberLock("評価要素ごとの点数は会員限定です", "能力・近走・末脚・距離・コース・馬場・展開・騎手・厩舎・血統・状態の 11 項目を、馬ごとに見られます。")}
+          : member ? noData() : memberLock("評価要素ごとの点数は会員限定です", "能力・近走・末脚・距離・コース・馬場・展開・騎手・厩舎・血統・状態の 11 項目を、馬ごとに見られます。")}
         <div class="h-sec"><h2>馬ごとの AI 解説</h2><span class="aside">会員限定</span></div>
         ${M?.horses ? storyCards(M, horses, r.field, V ? posMap : null)
-          : member ? empty("このレースの解説はまだありません。") : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。")}
+          : member ? noData() : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。")}
         ${M?.preview_md ? `<details class="more"><summary>レース全体の解説</summary><div class="md">${md(M.preview_md)}</div></details>` : ""}`;
       html += V ? `<details class="more" open><summary>レース前の予想と、評価・解説（発走前の内容）</summary><div>${body}</div></details>` : body;
     } else if (!V) {
@@ -620,8 +624,8 @@
     const pub = perf?.payload || {};
     const p = det || pub;
     const sl = p.strategies_live || {}, sb2 = det ? (p.strategies_backtest || {}) : {};
-    let html = `<div class="h-sec"><h2>買い方ごとの通算成績</h2><span class="aside">発走前に公開した買い目だけ・外れも含めて全件</span></div>`;
-    const liveRows = SORDER.filter((k) => sl[k]);
+    let html = `<div class="h-sec"><h2>買い方ごとの通算成績</h2><span class="aside">発走前に予想して公開したレースだけ・外れも含めて全件</span></div>`;
+    const liveRows = (p.n_pre ?? 1) > 0 ? SORDER.filter((k) => sl[k]) : [];
     html += liveRows.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm"></th></tr></thead><tbody>
       ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">これまでのレースはすべて見送り（期待値が基準に届かなかったため）</td></tr>`;
         return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td class="r">${num(s.n)}</td><td class="r">${pct(s.hit / s.n, 0)}</td><td class="r"><b>${roiTag(roi, 1)}</b></td><td class="hide-sm">${roiBar(roi)}</td></tr>`; }).join("")}
@@ -630,7 +634,15 @@
       ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>
       ${p.strategies_live_note ? `<p class="note">${esc(p.strategies_live_note)}</p>` : ""}
       ${Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3>回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
-      : empty("結果の出たレースが増えると、ここに買い方ごとの通算成績を表示します。");
+      : empty("発走前に予想して公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。");
+    const sa = p.strategies_after || {};
+    if (SORDER.some((k) => sa[k]?.stake)) {
+      html += `<div class="h-sec"><h2>参考：発走後に予想したレース</h2><span class="aside">${num(p.n_post || 0)} レース・通算成績には含めない</span></div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th></tr></thead><tbody>
+        ${SORDER.map((k) => { const x = sa[k] || {}; return x.stake ? `<tr><td><b>${STRAT[k].name}</b></td><td class="r">${num(x.n)}</td><td class="r">${pct(x.hit / x.n, 0)}</td><td class="r">${roiTag(x.ret / x.stake, 1)}</td></tr>`
+          : `<tr><td><b>${STRAT[k].name}</b></td><td colspan="3" class="muted">すべて見送り</td></tr>`; }).join("")}</tbody></table></div>
+        <p class="note">${esc(p.strategies_after_note || "")}</p>`;
+    }
     if (!det) {
       const bt = pub.strategies_backtest || {};
       html += `<div class="h-sec"><h2>過去データでの検証</h2></div>
