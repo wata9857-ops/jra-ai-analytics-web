@@ -396,7 +396,7 @@
           <div class="pmeta"><span>合計 <b>${yen(s.total)}</b></span>${s.p_any != null ? `<span>的中確率 ${pct(s.p_any, 0)}</span>` : ""}${s.ev != null ? `<span>期待値 ${s.ev.toFixed(2)}</span>` : ""}</div>
           <p class="note">${esc(s.reason || "")}</p>`;
       return `<section class="splan ${P.recommended === k ? "rec" : ""}"><header><b>${m.name}</b><span class="risk r-${m.risk}">リスク${m.risk}</span>${P.recommended === k ? '<span class="chip done">おすすめ</span>' : ""}</header>
-        <p class="ssub">${m.sub}${v?.test_roi != null ? `・検証 ${pct(v.test_roi, 0)}` : ""}</p>${body}</section>`;
+        <p class="ssub">${m.sub}${v?.full_roi != null ? `・過去の検証 ${pct(v.full_roi, 0)}` : v?.test_roi != null ? `・検証 ${pct(v.test_roi, 0)}` : ""}</p>${body}</section>`;
     }).join("")}</div><p class="note">金額は総資金 10 万円の場合（1 口＝総資金の 0.1%）。期待値は過去の同じ条件の買い目の実績で補正した値です。</p>`;
   }
   function oldRec(rec) {
@@ -549,7 +549,7 @@
       : empty("結果の出たレースが増えると、ここに買い方ごとの通算成績を表示します。");
     if (Object.keys(sb2).length) {
       html += `<div class="h-sec"><h2>過去データでの検証</h2><span class="aside">${esc(p.strategies_backtest_period || "")}</span></div>
-        <div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2018〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間<br><small>検証</small></th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間<br><small>検証</small></th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
         ${SORDER.filter((k) => sb2[k]).map((k) => { const s = sb2[k]; return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${esc(s.rule || "")}</div></td><td class="r">${pct(s.coverage, 0)}</td><td class="r">${pct(s.hit_rate, 0)}</td>
           <td class="r ${roiCls(s.dev_roi)}">${pct(s.dev_roi)}</td><td class="r ${roiCls(s.test_roi)}"><b>${pct(s.test_roi)}</b></td><td class="r ${roiCls(s.full_roi)}">${pct(s.full_roi)}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
         </tbody></table></div><div class="sheet" style="margin-top:12px"><h3>年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>
@@ -618,7 +618,7 @@
     setNav("about");
     app.innerHTML = `<div class="h-sec"><h2>見方</h2></div><div class="steps">
       <div class="sheet"><div><h3>AI独自と勝率</h3><p>「AI独自」はオッズを使わず、スピード指数・上がり・近走・適性・調教・騎手などから出した能力の順位。「勝率」はそれに市場（オッズ）の情報を合わせた確率です。</p></div></div>
-      <div class="sheet"><div><h3>4 つの買い方</h3><p><b>AI推奨</b>：期待値が十分なときだけ買い、無ければ見送り。<b>安定型</b>：複勝・ワイド中心で当たりやすさ重視。<b>バランス型</b>：毎レース期待値が最も高い 1 点。<b>高配当型</b>：三連複・馬連の高配当を少額で。</p></div></div>
+      <div class="sheet"><div><h3>4 つの買い方</h3><p><b>AI推奨</b>：統合の期待値と AI 能力評価の期待値の両方が基準を超えた買い目だけを最大 3 点。無ければ見送り。<b>安定型</b>：複勝・ワイド中心で当たりやすさ重視。<b>バランス型</b>：毎レース期待値が最も高い買い目。<b>高配当型</b>：三連複・馬連の高配当を最大 3 点。</p></div></div>
       <div class="sheet"><div><h3>期待値</h3><p>1.00 で長期的に収支トントン。過去の同じ条件の買い目が実際にどれだけ戻ったかで補正しています。</p></div></div>
       <div class="sheet"><div><h3>答え合わせ</h3><p>結果が出たら、AI の上位 3 頭の着順と、4 つの買い方それぞれの収支を表示します。外れたレースもそのまま残します。</p></div></div></div>`;
   }
