@@ -274,6 +274,35 @@ h4.course-h::after{content:"";flex:1;height:1px;background:var(--rule)}
   padding:8px 16px;font-size:.88rem;font-weight:700;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:60}
 #toast.show{opacity:.92;transform:translateX(-50%) translateY(0)}
 
+
+/* ---------- v37：会員限定・的中の強調・評価要素・AI 解説 ---------- */
+.mlock{display:flex;gap:14px;align-items:flex-start;background:var(--sheet);border:1px dashed var(--ink);padding:14px 16px;margin:6px 0}
+.mlock-ic{font-size:1.4rem;line-height:1}.mlock b{font-family:var(--serif)}.mlock p{margin:4px 0 10px;font-size:.86rem;color:var(--ink2)}
+.hitbanner{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+.hb{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;background:var(--plus-bg);color:var(--plus);font-weight:800;border:1.5px solid var(--plus)}
+.hb.big{background:var(--plus);color:#fff;font-size:1.02rem}
+.hb.muted{background:var(--sheet);color:var(--muted);border-color:var(--rule2);font-weight:600}
+.verdict .vc{position:relative}
+.verdict .vc.vhit{background:var(--plus-bg);box-shadow:inset 0 0 0 2px var(--plus)}
+.vstamp{position:absolute;right:8px;top:8px;border:2px solid var(--plus);color:var(--plus);font-weight:900;font-size:.78rem;padding:0 5px;transform:rotate(-6deg);background:var(--sheet)}
+.hitstamp{display:inline-block;margin-left:4px;font-size:.66rem;font-family:var(--sans);font-weight:800;color:#fff;background:var(--plus);padding:0 4px;vertical-align:2px}
+.hitchip{display:inline-block;font-size:.72rem;font-weight:800;color:#fff;background:var(--plus);padding:1px 6px;white-space:nowrap}
+tr.why td{font-size:.78rem;color:var(--ink2);padding-top:0;border-bottom:1px solid var(--rule)}
+.ftab th{font-size:.7rem;padding:6px 4px}
+.ftab td.fc,table.t.ftab tr.hit td.fc{text-align:center;font-weight:700;font-size:.82rem;padding:6px 4px;
+  background:color-mix(in srgb, var(--ai) calc(var(--v) * 0.8%), var(--sheet));color:var(--ink)}
+.ftab td.fc.hi{color:#fff}
+table.t.ftab tr.hit td.nm{background:var(--plus-bg);box-shadow:inset 3px 0 0 var(--plus)}
+.stories{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.story{background:var(--sheet);border:1px solid var(--rule);padding:12px 14px}
+.story.hit{border-color:var(--plus);box-shadow:inset 3px 0 0 var(--plus)}
+.story header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.story header b{font-family:var(--serif)}
+.story p{margin:0;font-size:.9rem;line-height:1.75}
+.spos{margin-left:auto;font-weight:800;font-size:.82rem;color:var(--muted)}.spos.on{color:var(--plus)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tag{font-size:.72rem;padding:0 6px;border:1px solid}
+.tag.up{color:var(--ai)}.tag.dn{color:var(--muted)}
+
 /* ---------- タブレット ---------- */
 @media (max-width:900px){
   .c4{grid-template-columns:1fr 1fr}
@@ -318,6 +347,8 @@ h4.course-h::after{content:"";flex:1;height:1px;background:var(--rule)}
   .sfig:nth-child(2n){border-right:0}.sfig:nth-child(n+3){border-top:1px solid var(--rule)}
   .splans{grid-template-columns:1fr}
   .scards{grid-template-columns:1fr 1fr;gap:8px}
+  .stories{grid-template-columns:1fr}
+  .mlock{flex-direction:column;gap:6px}
   .scard{padding:10px 12px}.scard .sv{font-size:1.6rem}
   .backbar.sticky{position:sticky;top:0;z-index:21;background:var(--paper);padding:6px 0;margin-top:4px}
   .backbar.sticky + .sdnav{top:52px}
