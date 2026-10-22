@@ -112,7 +112,7 @@
   })();
 
   // ---------------- データ取得 ----------------
-  const RACE_COLS = "race_id,race_date,post_time,course,race_num,race_name,grade,surface,distance,field,status";
+  const RACE_COLS = "*";   // v46: 公開予定時刻（release_at）・予想の段階（pred_stage）・無料会員への特別公開（member_preview）を含む
   function queryRaces(f) {
     const key = "races:" + JSON.stringify(f);
     return cached(key, 60e3, async () => {
@@ -244,7 +244,7 @@
   const tip = (text) => (text ? `<span class="tipw"><button type="button" class="tipb" data-act="tip" aria-label="説明を表示" aria-expanded="false">?</button><span class="tipc" role="note" hidden>${esc(text)}</span></span>` : "");
   // セクション：大きめのゴシックの見出し＋開閉ボタン。acc＝色分け（result 結果 / bet 買い方 / ai 予想 / pay 配当 / stat 成績 / info その他）
   function blk(title, body, o = {}) {
-    return `<details class="blk acc-${o.acc || "info"}" ${o.closed ? "" : "open"}>
+    return `<details class="blk acc-${o.acc || "info"}${o.cls ? " " + o.cls : ""}"${o.id ? ` id="${o.id}"` : ""} ${o.closed ? "" : "open"}>
       <summary><span class="bt">${title}</span>${o.badge ? `<span class="bbadge">${o.badge}</span>` : ""}${tip(o.tip)}<span class="bchev" aria-hidden="true"></span></summary>
       <div class="blk-b">${o.top ? `<div class="blk-top">${o.top}</div>` : ""}${body}</div></details>`;
   }
@@ -275,9 +275,21 @@
   const md2 = (s) => { const d = new Date(s + "T00:00:00+09:00"); return { m: d.getMonth() + 1, d: d.getDate(), w: "日月火水木金土"[d.getDay()] }; };
 
   // これからのレース（1 行）
+  // 公開予定の日時（例：10/25(土) 18:00）
+  function relTime(iso, long) {
+    const d = new Date(iso);
+    const j = new Date(d.getTime() + 9 * 3600e3);
+    const wd = "日月火水木金土"[j.getUTCDay()];
+    const hm = `${String(j.getUTCHours()).padStart(2, "0")}:${String(j.getUTCMinutes()).padStart(2, "0")}`;
+    return long ? `${j.getUTCMonth() + 1}月${j.getUTCDate()}日(${wd}) ${hm}` : `${j.getUTCMonth() + 1}/${j.getUTCDate()}(${wd}) ${hm}`;
+  }
   function raceRow(r) {
     const started = r.post_time && new Date(r.post_time) <= new Date();
-    const right = started ? `<span class="st">発走済み</span>` : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">ゴールド会員限定</span>`;
+    const rel = r.release_at && new Date(r.release_at) > new Date();
+    const right = started ? `<span class="st">発走済み</span>`
+      : rel ? `<span class="st st-sched">公開予定 ${relTime(r.release_at)}</span>`
+      : r.member_preview && !isPremium() ? `<span class="st st-mp">無料会員に特別公開</span>`
+      : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">ゴールド会員限定</span>`;
     return `<a class="rrow" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rn"><b>${r.race_num ? esc(r.race_num) + "R" : ""}</b><small>${fmtTime(r.post_time)}</small></div>
       <div class="t">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b><small class="rmeta">${esc(r.course || "")}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</small></div>
@@ -712,6 +724,10 @@
     if (P) {
       const horses = P.horses || [];
       html += divider("pre", "発走前の AI 予想", V ? "ここから下は、レース前に分かっていた情報だけで作った予想です" : "レース前に分かっている情報だけで作った予想");
+      if (!V && P.stage === "early") html += `<div class="stage-warn" role="alert"><b>${esc(P.stage_note || "⚠️ この予想には、馬体重やオッズなどの直前の情報がまだ含まれていません。最新の確定情報で更新した予想は、発走の約 1 時間前に公開します。")}</b>
+        <small>今の予想は、枠順が確定した時点の情報（過去の成績・適性・調教など）だけで作った「AI の能力評価」です。オッズが出る前のため、買い方はまだありません。</small></div>`;
+      else if (!V && P.stage === "final") html += `<div class="stage-ok">✅ 馬体重などの直前の確定情報を含めて更新した予想です。</div>`;
+      if (!V && r.member_preview && !isPremium()) html += `<div class="mp-note">🎁 このレースは、無料会員の方にも特別に公開しています。</div>`;
       html += blk("AI の予想", horsesTable(horses, r.field, V ? posMap : null)
         + (P.character?.text ? `<div class="sheet ctext"><b>レースの性格：${esc(P.character.kind || "")}</b>　${esc(P.character.text)}</div>` : ""), { acc: "ai", tip: TIP_AI });
       html += blk(V ? "買い方（発走前に決めた買い目）" : "買い方と選んだ理由", M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
@@ -724,6 +740,15 @@
         : member ? noData() : memberLock("馬ごとの AI 解説は会員限定です", "前走・近走の成績、調教の時計、スピード指数などをもとにした解説を見られます。"),
         { acc: "story", badge: "会員", closed: true, tip: "前走・近走の成績、上がり、スピード指数、坂路調教の時計、休み明け、評価要素の強み・弱みから作った解説。発走前に分かる情報だけを使っています。" });
       if (M?.preview_md) html += blk("レース全体の解説", `<div class="md">${md(M.preview_md)}</div>`, { acc: "story", closed: true, badge: "会員" });
+    } else if (!V && r.release_at && new Date(r.release_at) > new Date()) {
+      html += `<div class="lockbox sched"><h3>このレースの予想は ${relTime(r.release_at, true)} に公開予定です</h3>
+        <p>枠順が確定したあとに早めの予想を、馬体重などの直前の情報がそろったら（発走の約 1 時間前）最新の予想を公開します。</p>
+        ${r.member_preview ? `<p class="note">このレースは無料会員の方にも特別公開します${state.session ? "" : "（無料会員登録・ログインが必要です）"}。</p>` : '<p class="note">発走前の予想はゴールド会員向けです。</p>'}
+        ${state.session ? "" : '<div class="cta center"><a class="btn shu" href="#/account">無料会員登録・ログイン</a></div>'}</div>`;
+    } else if (!V && r.member_preview && !state.session) {
+      html += `<div class="lockbox mp"><h3>🎁 このレースの予想は、無料会員に特別公開中です</h3>
+        <p>無料会員登録（メールアドレスとパスワードだけ）またはログインで、発走前の AI 予想と買い方を見られます。</p>
+        <div class="cta center"><a class="btn shu" href="#/account">無料会員登録・ログイン</a></div></div>`;
     } else if (!V) {
       const t = await getTeaser(id);
       if (tok !== routeTok) return;
@@ -749,17 +774,18 @@
     const tipPub = `公開した ${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・検証 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
       + "検証レースは、そのレースの年より前のデータだけで学習したモデルで予想したもので、未来の情報は使っていません。外れも含めて全件を集計しています。";
     const liveRows = n > 0 ? SORDER.filter((k) => sl[k]) : [];
-    let html = blk(`公開レースの通算成績<small class="bt-sub">${num(n)} レース</small>`, liveRows.length ? `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm w-bar"></th></tr></thead><tbody>
+    let pubHtml = blk(`公開レースの通算成績（参考）<small class="bt-sub">${num(n)} レース</small>`, liveRows.length ? `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm w-bar"></th></tr></thead><tbody>
       ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">すべて見送り（期待値が基準に届かなかったため）</td></tr>`;
         return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td class="r">${num(s.n)}</td><td class="r">${pct(s.hit / s.n, 0)}</td><td class="r"><b>${roiTag(roi, 1)}</b></td><td class="hide-sm">${roiBar(roi)}</td></tr>`; }).join("")}
       </tbody></table></div>
       ${det ? `<details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>
       ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
       ${det && Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3 class="h3s">回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
-      : empty("公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。"), { acc: "stat", tip: tipPub });
+      : empty("公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。"), { acc: "info", tip: tipPub + " レース数が少ないため、数字は大きく動きます。", closed: true, cls: "minor", id: "pub-perf" });
+    let html = "", afterHtml = "";
     const sa = p.strategies_after || {};
     if (SORDER.some((k) => sa[k]?.stake)) {
-      html += blk(`参考<small class="bt-sub">${num(p.n_post || 0)} レース</small>`, `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th></tr></thead><tbody>
+      afterHtml += blk(`参考<small class="bt-sub">${num(p.n_post || 0)} レース</small>`, `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th></tr></thead><tbody>
         ${SORDER.map((k) => { const x = sa[k] || {}; return x.stake ? `<tr><td><b>${STRAT[k].name}</b></td><td class="r">${num(x.n)}</td><td class="r">${pct(x.hit / x.n, 0)}</td><td class="r">${roiTag(x.ret / x.stake, 1)}</td></tr>`
           : `<tr><td><b>${STRAT[k].name}</b></td><td colspan="3" class="muted">すべて見送り</td></tr>`; }).join("")}</tbody></table></div>`,
         { acc: "info", closed: true, tip: p.strategies_after_note || "" });
@@ -776,6 +802,7 @@
         </tbody></table></div><div class="sheet" style="margin-top:12px"><h3 class="h3s">年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>`,
         { acc: "stat", badge: "会員", tip: (p.strategies_backtest_period || "") + "。" + (p.strategies_backtest_note || "") });
     }
+    html += pubHtml + afterHtml;
     const acc = det ? p.accuracy : null;
     if (acc && acc.rows) {
       html += blk("予想の精度", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>指標</th><th class="r">AI予想</th><th class="r">能力評価</th><th class="r">人気順</th></tr></thead><tbody>
@@ -788,7 +815,7 @@
     app.innerHTML = html;
     const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#2E7D32", high: "#B8202B" };
     const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified").sort((x, y) => (x.date || "").localeCompare(y.date || ""));
-    if (rows.length && det) {
+    const drawCum = () => {
       const accm = {}, ser = {};
       rows.forEach((x) => SORDER.forEach((k) => {
         const a = accm[k] || (accm[k] = { s: 0, r: 0 });
@@ -798,6 +825,11 @@
       makeChart("cum4", { type: "line", data: { labels: rows.map((x, i) => `${i + 1}`), datasets: SORDER.filter((k) => ser[k].some((v) => v != null)).map((k) => ({ label: STRAT[k].name, data: ser[k], borderColor: colors[k], borderWidth: 2, pointRadius: 2, tension: 0, spanGaps: true })) },
         options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: "bottom" } },
           scales: { x: { title: { display: true, text: "レース（古い順）" } }, y: { suggestedMin: 0, suggestedMax: 150, ticks: { callback: (v) => v + "%" } } } } });
+    };
+    if (rows.length && det) {
+      const box = document.getElementById("pub-perf");
+      if (box && box.open) drawCum();
+      else if (box) box.addEventListener("toggle", function once() { if (box.open) { box.removeEventListener("toggle", once); drawCum(); } });
     }
     const ks = SORDER.filter((k) => sb2[k]?.by_year);
     if (ks.length) {
@@ -931,11 +963,21 @@
     }
   }
   async function loadNotices() {
+    // v46: 管理アプリから公開したお知らせ（performance の notices）を使う。まだ無ければサイトに同梱の notices.json
+    let list = null;
     try {
-      const r = await fetch("notices.json?v=" + Math.floor(Date.now() / 600000), { cache: "no-cache" });
-      if (!r.ok) return;
-      const j = await r.json();
-      Notice.items = (j.notices || []).filter((x) => x && x.id && x.title).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      if (!DEMO) {
+        const { data } = await sb.from("performance").select("payload").eq("id", "notices").maybeSingle();
+        if (data?.payload && Array.isArray(data.payload.notices)) list = data.payload.notices;
+      }
+    } catch (e) { list = null; }
+    try {
+      if (!list) {
+        const r = await fetch("notices.json?v=" + Math.floor(Date.now() / 600000), { cache: "no-cache" });
+        if (!r.ok) return;
+        list = (await r.json()).notices || [];
+      }
+      Notice.items = list.filter((x) => x && x.id && x.title).sort((a, b) => String(b.date).localeCompare(String(a.date)));
       noticeBadge();
     } catch (e) { /* お知らせが読めなくてもサイトは使える */ }
   }

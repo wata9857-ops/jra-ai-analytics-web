@@ -619,6 +619,23 @@ table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
   .must-i{grid-template-columns:auto minmax(0,1fr);gap:8px 10px}.must-i .rc-date{grid-area:auto;grid-column:1;grid-row:1}.must-i .must-m{grid-column:2;grid-row:1}.must-go{grid-column:1 / -1;text-align:right;border-top:1px dashed var(--rule);padding-top:6px}
 }
 
+
+/* =================== v46：早めの予想の警告・公開予定・特別公開・成績ページの参考の区画 =================== */
+.stage-warn{margin:14px 0 4px;padding:14px 16px;border-radius:10px;background:#FFF4E5;border:2px solid #E8A33D;color:#5C3B00;display:flex;flex-direction:column;gap:6px}
+.stage-warn b{font-family:var(--head);font-size:1.02rem;line-height:1.6}
+.stage-warn small{font-size:.84rem;color:#6B4E1A;line-height:1.6}
+.stage-ok{margin:12px 0 4px;padding:10px 14px;border-radius:10px;background:#EEF6EF;border:1px solid #B9D8BD;color:#24572C;font-weight:700;font-size:.9rem}
+.mp-note{margin:10px 0 4px;padding:10px 14px;border-radius:10px;background:#FFF7E0;border:1px solid #EBCB7A;color:#6B4E00;font-weight:700;font-size:.9rem}
+.lockbox.sched{border-color:#2B4C7E}.lockbox.sched h3{color:#2B4C7E}
+.lockbox.mp{border-color:#C08A00}
+.st.st-sched,.st.st-mp{padding:2px 9px;border-radius:999px;font-weight:700}
+.st.st-sched::before,.st.st-mp::before{content:none}
+.st.st-sched{background:#E8EDF5;color:#2B4C7E;border:1px solid #B7C6DD}
+.st.st-mp{background:#FFF4D6;color:#7D5800;border:1px solid #E7C76F}
+.blk.minor{box-shadow:none;border-style:dashed;margin-top:22px}
+.blk.minor > summary{min-height:44px;padding-top:8px;padding-bottom:8px}
+.blk.minor .bt{font-size:1rem;color:var(--ink2)}
+
 /* ---------- タブレット ---------- */
 @media (max-width:900px){
   .c4{grid-template-columns:1fr 1fr}
