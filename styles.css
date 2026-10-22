@@ -570,6 +570,55 @@ table.t tr.hit td{background:#F1F8F1}
   .ntc{top:58px;right:8px;left:8px;width:auto;max-height:calc(100vh - 140px)}
 }
 
+
+/* =================== v44：トップの「AI予想の的中実績」 =================== */
+.acards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.acard{display:flex;flex-direction:column;gap:4px;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.acard .an{font-family:var(--head);font-weight:800;font-size:.95rem;display:flex;flex-direction:column}
+.acard .an small{font-weight:500;font-size:.74rem;color:var(--muted)}
+.acard .av{font-family:var(--head);font-weight:900;font-size:2.1rem;line-height:1.1;color:#1F3A5F;font-variant-numeric:tabular-nums}
+.acard .av small{font-size:.95rem;font-weight:700;margin-left:2px;color:var(--ink2)}
+.acard .abar{display:block;height:6px;border-radius:999px;background:#E8E4DA;overflow:hidden}
+.acard .abar i{display:block;height:100%;background:#2B4C7E;border-radius:999px}
+.acard .as{font-size:.78rem;color:var(--muted)}
+.acc-ref{margin:10px 2px 0;font-size:.8rem;color:var(--muted)}
+@media (max-width:900px){.acards{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.acard{padding:10px 12px}.acard .av{font-size:1.75rem}}
+
+
+/* =================== v45：トップのメニュー・今週の必見レース・会員について・管理人の紹介 =================== */
+.qmenu{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
+.qbtn{display:flex;align-items:center;gap:10px;padding:12px 12px;border-radius:12px;background:#fff;border:1px solid #DCD6C8;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.05);min-height:64px;transition:transform .12s,box-shadow .12s}
+.qbtn:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 4px 12px rgba(40,30,10,.10);border-color:#B8AFA0}
+.qic{flex:0 0 auto;width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}
+.qic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.qt{display:flex;flex-direction:column;min-width:0;line-height:1.3}.qt b{font-family:var(--head);font-size:.98rem}.qt small{font-size:.72rem;color:var(--muted)}
+.qarr{margin-left:auto;color:var(--muted);font-size:1.2rem}
+.q-stats .qic{background:#E8EDF5;color:#2B4C7E}.q-upcoming .qic{background:#E3F1F0;color:#0F6461}.q-member .qic{background:#FAF1DC;color:#7D5800}
+.q-about .qic{background:#EEE9F8;color:#4E3591}.q-profile .qic{background:#F6E9E6;color:#8A3A2E}
+.acc-must > summary{background:#FDF0E6}.acc-must .bt{color:#9A3D12}
+.must{display:grid;gap:8px}
+.must-i{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
+a.must-i:hover{text-decoration:none;border-color:#B8AFA0;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.must-m{display:flex;flex-direction:column;gap:2px;min-width:0}
+.must-c{font-size:.85rem;color:var(--ink2);margin-top:2px}
+.must-go{font-weight:800;font-size:.85rem;color:#1F4E86;white-space:nowrap}.must-go small{font-weight:600;color:var(--muted)}
+.must-note{margin:0 0 8px;font-size:.88rem;color:var(--ink2)}
+.rc-date.sat{background:#1F4E86}.rc-date.sun{background:#B8202B}
+table.plan th small{display:block;font-weight:500;font-size:.7rem;color:var(--muted)}
+table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
+.prof-h{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.prof-av{width:56px;height:56px;border-radius:50%;background:#22303F;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:900;font-size:1.4rem;flex:0 0 auto}
+.prof-n{display:block;font-family:var(--head);font-size:1.25rem}.prof-t{display:block;font-size:.85rem;color:var(--muted)}
+.prof-b p,.prof-s p{line-height:1.85;margin:8px 0}
+.prof-links{margin:0;padding-left:1.2em}.prof-links li{margin:4px 0}
+.prof-up{font-size:.78rem;color:var(--muted);margin-top:8px}
+@media (max-width:900px){.qmenu{grid-template-columns:repeat(2,1fr)}.qbtn.q-profile{grid-column:1 / -1}}
+@media (max-width:640px){
+  .qmenu{gap:8px;margin-top:10px}.qbtn{padding:10px;min-height:58px}.qic{width:36px;height:36px}.qt b{font-size:.92rem}.qt small{display:none}
+  .must-i{grid-template-columns:auto minmax(0,1fr);gap:8px 10px}.must-i .rc-date{grid-area:auto;grid-column:1;grid-row:1}.must-i .must-m{grid-column:2;grid-row:1}.must-go{grid-column:1 / -1;text-align:right;border-top:1px dashed var(--rule);padding-top:6px}
+}
+
 /* ---------- タブレット ---------- */
 @media (max-width:900px){
   .c4{grid-template-columns:1fr 1fr}
