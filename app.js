@@ -27,6 +27,7 @@
   const pl = (x) => (x == null || isNaN(x) ? "—" : x > 0 ? `<span class="plus">+${num(x)}円</span>` : x < 0 ? `<span class="minus">▲${num(-x)}円</span>` : "±0円");
   const roiCls = (r) => (r == null ? "" : r >= 1 ? "plus" : "minus");
   const JST = { timeZone: "Asia/Tokyo" };
+  const fmtDateShort = (iso) => (iso ? new Date(iso).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", ...JST }) : "");
   const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", ...JST }) : "");
   const fmtDate = (s, y) => (s ? new Date(s + "T00:00:00+09:00").toLocaleDateString("ja-JP", { ...(y ? { year: "numeric" } : {}), month: "long", day: "numeric", weekday: "short", ...JST }) : "");
   const todayStr = () => new Date().toLocaleDateString("sv-SE", JST);
@@ -761,9 +762,14 @@
     if (P) {
       const horses = P.horses || [];
       html += divider("pre", "発走前の AI 予想", V ? "ここから下は、レース前に分かっていた情報だけで作った予想です" : "レース前に分かっている情報だけで作った予想");
-      if (!V && P.stage === "early") html += `<div class="stage-warn" role="alert"><b>${esc(P.stage_note || "⚠️ この予想には、馬体重やオッズなどの直前の情報がまだ含まれていません。最新の確定情報で更新した予想は、発走の約 1 時間前に公開します。")}</b>
-        <small>今の予想は、枠順が確定した時点の情報（過去の成績・適性・調教など）だけで作った「AI の能力評価」です。オッズが出る前のため、買い方はまだありません。</small></div>`;
-      else if (!V && P.stage === "final") html += `<div class="stage-ok">✅ 馬体重などの直前の確定情報を含めて更新した予想です。</div>`;
+      const upd = pred?.generated_at ? `${fmtDateShort(pred.generated_at)} ${fmtTime(pred.generated_at)}` : "";
+      const finalAt = r.post_time ? fmtTime(new Date(new Date(r.post_time).getTime() - 5 * 60e3).toISOString()) : "";
+      if (!V && P.stage === "early") html += `<div class="stage-warn" role="alert"><div class="sw-h"><span class="sw-ic" aria-hidden="true">!</span><b>暫定の予想です（最終版ではありません）</b></div>
+        <p>${esc(P.stage_note || "馬体重・オッズが確定する前の情報で作っているため、最終版では印や買い目が変わることがあります。最終版は発走の約 5 分前に更新します。馬券を買う前に、必ず最終版をご確認ください。")}</p>
+        <ul class="sw-l">${upd ? `<li>この予想の更新日時：<b>${esc(upd)}</b></li>` : ""}${finalAt ? `<li>最終版の更新予定：<b>${esc(finalAt)} ごろ</b>（発走の約 5 分前）</li>` : ""}</ul>
+        <small>${horses.some((h) => h.odds) ? "表示中のオッズは更新した時点のもので、発走までに変わります。" : "今の予想は、枠順が確定した時点の情報（過去の成績・適性・調教など）だけで作った「AI の能力評価」です。オッズが出る前のため、買い方はまだありません。"}</small></div>`;
+      else if (!V && P.stage === "final") html += `<div class="stage-ok">✅ ${esc(P.stage_note || "発表された馬体重と、発走直前のオッズで更新した最終版の予想です。")}${upd ? `<span class="so-t">更新日時：${esc(upd)}</span>` : ""}</div>`;
+      else if (!V && upd) html += `<p class="note">この予想の更新日時：${esc(upd)}</p>`;
       if (!V && r.member_preview && !isPremium()) html += `<div class="mp-note">🎁 このレースは、無料会員の方にも特別に公開しています。</div>`;
       html += blk("AI の予想", horsesTable(horses, r.field, V ? posMap : null)
         + (P.character?.text ? `<div class="sheet ctext"><b>レースの性格：${esc(P.character.kind || "")}</b>　${esc(P.character.text)}</div>` : ""), { acc: "ai", tip: TIP_AI });
@@ -779,7 +785,7 @@
       if (M?.preview_md) html += blk("レース全体の解説", `<div class="md">${md(M.preview_md)}</div>`, { acc: "story", closed: true, badge: "会員" });
     } else if (!V && r.release_at && new Date(r.release_at) > new Date()) {
       html += `<div class="lockbox sched"><h3>このレースの予想は ${relTime(r.release_at, true)} に公開予定です</h3>
-        <p>枠順が確定したあとに早めの予想を、馬体重などの直前の情報がそろったら（発走の約 1 時間前）最新の予想を公開します。</p>
+        <p>枠順が確定したあとに暫定の予想を、馬体重・オッズがそろったら発走の約 5 分前に最終版を公開します。</p>
         ${r.member_preview ? `<p class="note">このレースは無料会員の方にも特別公開します${state.session ? "" : "（無料会員登録・ログインが必要です）"}。</p>` : '<p class="note">発走前の予想はゴールド会員向けです。</p>'}
         ${state.session ? "" : '<div class="cta center"><a class="btn shu" href="#/account">無料会員登録・ログイン</a></div>'}</div>`;
     } else if (!V && r.member_preview && !state.session) {

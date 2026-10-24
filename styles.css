@@ -643,10 +643,15 @@ table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
 
 
 /* =================== v46：早めの予想の警告・公開予定・特別公開・成績ページの参考の区画 =================== */
-.stage-warn{margin:14px 0 4px;padding:14px 16px;border-radius:10px;background:#FFF4E5;border:2px solid #E8A33D;color:#5C3B00;display:flex;flex-direction:column;gap:6px}
-.stage-warn b{font-family:var(--head);font-size:1.02rem;line-height:1.6}
-.stage-warn small{font-size:.84rem;color:#6B4E1A;line-height:1.6}
-.stage-ok{margin:12px 0 4px;padding:10px 14px;border-radius:10px;background:#EEF6EF;border:1px solid #B9D8BD;color:#24572C;font-weight:700;font-size:.9rem}
+.stage-warn{margin:14px 0 4px;padding:14px 16px 14px 14px;border-radius:10px;background:#FFF1EC;border:2px solid var(--shu);border-left-width:8px;color:#5A1212;display:flex;flex-direction:column;gap:6px}
+.stage-warn .sw-h{display:flex;align-items:center;gap:10px}
+.stage-warn .sw-ic{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--shu);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:1.05rem}
+.stage-warn .sw-h b{font-family:var(--head);font-size:1.12rem;line-height:1.5;color:var(--shu)}
+.stage-warn p{margin:2px 0;line-height:1.7;font-weight:600}
+.stage-warn .sw-l{margin:2px 0;padding-left:1.2em;line-height:1.8}.stage-warn .sw-l b{font-variant-numeric:tabular-nums}
+.stage-warn small{font-size:.84rem;color:#6B2A2A;line-height:1.6}
+.stage-ok{margin:12px 0 4px;padding:10px 14px;border-radius:10px;background:#EEF6EF;border:1px solid #B9D8BD;color:#24572C;font-weight:700;font-size:.9rem;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.stage-ok .so-t{font-weight:500;font-size:.82rem;color:#3C6B43}
 .mp-note{margin:10px 0 4px;padding:10px 14px;border-radius:10px;background:#FFF7E0;border:1px solid #EBCB7A;color:#6B4E00;font-weight:700;font-size:.9rem}
 .lockbox.sched{border-color:#2B4C7E}.lockbox.sched h3{color:#2B4C7E}
 .lockbox.mp{border-color:#C08A00}
