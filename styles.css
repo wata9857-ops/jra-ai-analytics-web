@@ -613,6 +613,28 @@ table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
 .prof-b p,.prof-s p{line-height:1.85;margin:8px 0}
 .prof-links{margin:0;padding-left:1.2em}.prof-links li{margin:4px 0}
 .prof-up{font-size:.78rem;color:var(--muted);margin-top:8px}
+/* v49: 管理人の紹介（左）＋ 馬券日記（右）。狭い画面では縦に並べる */
+.prof-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.prof-main,.prof-diary{min-width:0}
+@media (max-width:900px){.prof-grid{grid-template-columns:1fr;gap:8px}}
+.dia-sum{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end}
+.dia-k span{display:block;font-size:.74rem;color:var(--muted);letter-spacing:.04em}.dia-k span small{font-size:.7rem}
+.dia-k b{font-family:var(--head);font-size:1.6rem;line-height:1.2}.dia-k b small{font-size:.8rem;color:var(--muted);font-weight:500}
+.dia-yen{flex-basis:100%;font-size:.82rem;color:var(--muted)}.dia-yen summary{cursor:pointer}
+.dia-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.dia-e{background:var(--sheet);border:1px solid var(--rule);padding:14px 16px}
+.dia-e[hidden]{display:none}
+.dia-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:6px}
+.dia-d{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.dia-n{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}.dia-n .gb{margin-right:6px}.dia-n small{margin-left:6px;color:var(--muted);font-size:.78rem}
+.dia-st{font-size:.72rem;padding:1px 8px;border:1px solid var(--rule2);color:var(--muted);white-space:nowrap}
+.dia-st.hit{border-color:var(--plus);color:var(--plus);background:var(--plus-bg)}
+.dia-c{margin:8px 0}.dia-c p{line-height:1.8;margin:4px 0}
+.dia-lab{display:inline-block;font-size:.7rem;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--rule2);margin-bottom:2px}
+.dia-t{margin:8px 0}.dia-t td.num{font-variant-numeric:tabular-nums}
+.dia-r{font-size:.86rem;margin:6px 0;display:flex;flex-wrap:wrap;gap:4px 12px}.dia-r b{font-weight:700}
+.dia-link{display:inline-block;font-size:.84rem;margin-top:4px}
+.dia-btn{margin-top:12px;width:100%}
 @media (max-width:900px){.qmenu{grid-template-columns:repeat(2,1fr)}.qbtn.q-profile{grid-column:1 / -1}}
 @media (max-width:640px){
   .qmenu{gap:8px;margin-top:10px}.qbtn{padding:10px;min-height:58px}.qic{width:36px;height:36px}.qt b{font-size:.92rem}.qt small{display:none}

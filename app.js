@@ -406,25 +406,62 @@
       <div class="sheet"><h3>ご注意</h3><p>AI の確率や期待値は過去の平均にもとづく目安で、利益を保証するものではありません。馬券は 20 歳以上の方が、ご自身の判断で余裕資金の範囲でお楽しみください。</p></div>
       <div class="cta">${state.session ? '<a class="btn" href="#/account">会員情報を見る</a>' : '<a class="btn shu" href="#/account">無料会員登録・ログイン</a>'}</div>`;
   }
+  // 管理人の馬券日記（performance の admin_diary。PC の管理アプリから送る。発走前の馬券は、管理人が「発走前から見せる」にした記録だけ）
+  function diaryEntry(x, hide) {
+    const d = x.date ? new Date(x.date + "T00:00:00+09:00") : null;
+    const when = d ? `${d.getMonth() + 1}/${d.getDate()}（${"日月火水木金土"[d.getDay()]}）` : "";
+    const place = `${x.course || ""}${x.race_num ? `${x.race_num}R` : ""}`;
+    const done = x.status === "settled";
+    const hit = done && x.payout > 0;
+    const st = done ? (hit ? ["hit", "的中"] : ["miss", "不的中"]) : x.status === "started" ? ["wait", "結果待ち"] : ["pre", "レース前"];
+    const para = (t) => String(t || "").split(/\n{2,}/).map((y) => y.trim()).filter(Boolean).map((y) => `<p>${esc(y).replace(/\n/g, "<br>")}</p>`).join("");
+    const rows = (x.tickets || []).map((t) => `<tr${done && !(t.payout > 0) ? ' class="dim"' : ""}><td>${esc(t.type)}</td><td class="num">${esc(t.combo)}</td>`
+      + `<td class="r num">${yen(t.stake)}</td>${done ? `<td class="r num${t.payout > 0 ? " plus" : ""}">${t.payout > 0 ? yen(t.payout) : "—"}</td>` : ""}</tr>`).join("");
+    const tk = rows ? `<div class="tbl-wrap"><table class="t compact dia-t"><thead><tr><th>券種</th><th>買い目</th><th class="r">金額</th>${done ? '<th class="r">払戻</th>' : ""}</tr></thead><tbody>${rows}</tbody></table></div>` : "";
+    const res = done ? `<p class="dia-r">購入 ${yen(x.stake)} → 払戻 ${yen(x.payout)}<b class="${x.payout >= x.stake ? "plus" : ""}">回収率 ${Math.round(x.payout / x.stake * 100)}%</b></p>` : "";
+    return `<article class="dia-e${hide ? " dia-more" : ""}"${hide ? " hidden" : ""}>
+      <div class="dia-h"><span class="dia-d">${esc(when)}</span><span class="dia-n">${x.grade ? gradeBadge(x.grade) : ""}<b>${esc(x.race_name || place)}</b>${x.race_name && place ? `<small>${esc(place)}</small>` : ""}</span><span class="dia-st ${st[0]}">${st[1]}</span></div>
+      ${x.pre_comment ? `<div class="dia-c"><span class="dia-lab">レース前</span>${para(x.pre_comment)}</div>` : ""}
+      ${tk}${x.tickets_hidden ? '<p class="note">買った馬券は、レースの後に公開します。</p>' : ""}${res}
+      ${x.post_comment ? `<div class="dia-c post"><span class="dia-lab">レース後</span>${para(x.post_comment)}</div>` : ""}
+      ${x.race_id && /^\d{12}$/.test(x.race_id) ? `<a class="dia-link" href="#/race/${x.race_id}">このレースの AI 予想を見る ›</a>` : ""}</article>`;
+  }
+  function diaryHtml(row) {
+    const es = ((row && row.payload && row.payload.entries) || []).filter((x) => x && (x.race_name || x.course));
+    if (!es.length) return `<div class="sheet muted">馬券日記はまだありません。</div>`;
+    const done = es.filter((x) => x.status === "settled" && x.stake > 0);
+    const st = done.reduce((a, x) => a + x.stake, 0), py = done.reduce((a, x) => a + x.payout, 0), nh = done.filter((x) => x.payout > 0).length;
+    const SHOW = 8;
+    const sum = done.length ? `<div class="sheet dia-sum"><div class="dia-k"><span>回収率<small>（結果が出た ${done.length} レース）</small></span><b class="${py >= st ? "plus" : ""}">${Math.round(py / st * 100)}%</b></div>
+      <div class="dia-k"><span>的中</span><b>${nh}<small> / ${done.length} レース</small></b></div>
+      <details class="dia-yen"><summary>金額で見る</summary><p>購入 ${yen(st)}・払戻 ${yen(py)}</p></details></div>` : "";
+    return `${sum}<div class="dia-list">${es.map((x, i) => diaryEntry(x, i >= SHOW)).join("")}</div>
+      ${es.length > SHOW ? `<button type="button" class="btn ghost dia-btn">これより前の日記を見る（${es.length - SHOW} 件）</button>` : ""}`;
+  }
   async function viewProfile(tok) {
     setNav("profile");
-    const row = await getSiteRow("site_profile").catch(() => null);
+    const [row, drow] = await Promise.all([getSiteRow("site_profile").catch(() => null), getSiteRow("admin_diary").catch(() => null)]);
     if (tok !== routeTok) return;
     const p = row?.payload || null;
+    let prof;
     if (!p || !(p.name || p.intro)) {
-      app.innerHTML = `<div class="h-sec"><h2>管理人の紹介</h2></div>${empty("管理人の紹介は準備中です。")}`;
-      return;
-    }
-    const paras = (t) => String(t || "").split(/\n{2,}/).map((x) => x.trim()).filter(Boolean).map((x) => `<p>${esc(x).replace(/\n/g, "<br>")}</p>`).join("");
-    const links = (p.links || []).filter((l) => l && l.label && /^https:\/\/[^\s"'<>]+$/.test(l.url || ""));
-    const initial = esc((String(p.name || "").match(/[\p{L}\p{N}]/u) || ["管"])[0]);
-    app.innerHTML = `<div class="h-sec"><h2>管理人の紹介</h2></div>
-      <div class="sheet prof"><div class="prof-h"><span class="prof-av" aria-hidden="true">${initial}</span>
+      prof = empty("管理人の紹介は準備中です。");
+    } else {
+      const paras = (t) => String(t || "").split(/\n{2,}/).map((x) => x.trim()).filter(Boolean).map((x) => `<p>${esc(x).replace(/\n/g, "<br>")}</p>`).join("");
+      const links = (p.links || []).filter((l) => l && l.label && /^https:\/\/[^\s"'<>]+$/.test(l.url || ""));
+      const initial = esc((String(p.name || "").match(/[\p{L}\p{N}]/u) || ["管"])[0]);
+      prof = `<div class="sheet prof"><div class="prof-h"><span class="prof-av" aria-hidden="true">${initial}</span>
         <div><b class="prof-n">${esc(p.name || "")}</b>${p.title ? `<span class="prof-t">${esc(p.title)}</span>` : ""}</div></div>
         <div class="prof-b">${paras(p.intro)}</div></div>
       ${(p.sections || []).filter((x) => x && (x.heading || x.body)).map((x) => `<div class="sheet prof-s">${x.heading ? `<h3>${esc(x.heading)}</h3>` : ""}${paras(x.body)}</div>`).join("")}
       ${links.length ? `<div class="sheet prof-s"><h3>リンク</h3><ul class="prof-links">${links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(l.label)} ↗</a></li>`).join("")}</ul></div>` : ""}
       ${row.updated_at ? `<p class="prof-up">最終更新：${new Date(row.updated_at).toLocaleDateString("ja-JP")}</p>` : ""}`;
+    }
+    app.innerHTML = `<div class="prof-grid"><section class="prof-main"><div class="h-sec"><h2>管理人の紹介</h2></div>${prof}</section>
+      <aside class="prof-diary" aria-label="管理人の馬券日記"><div class="h-sec"><h2>管理人の馬券日記</h2></div>${diaryHtml(drow)}
+      <p class="note">管理人が実際に買った馬券の記録です。AI の予想・買い方とは別の、個人の判断による馬券も含みます。</p></aside></div>`;
+    const more = app.querySelector(".dia-btn");
+    if (more) more.addEventListener("click", () => { app.querySelectorAll(".dia-more").forEach((e) => { e.hidden = false; }); more.remove(); });
   }
 
   async function viewHome(tok) {
