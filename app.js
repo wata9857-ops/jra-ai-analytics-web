@@ -337,6 +337,7 @@
     return `<div class="rcards">${list.map((r) => resultCard(r, homeIdx[r.race_id])).join("")}</div>`;
   }
   // ---------------- トップ：メニューのボタン・今週の必見レース ----------------
+  const PRISM_URL = "https://wata9857-ops.github.io/prism/";
   const ICONS = {
     stats: '<path d="M5 20V10M12 20V4M19 20v-7"/>',
     upcoming: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
@@ -344,8 +345,15 @@
     about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
     profile: '<path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/>',
   };
+  // PRISM: 予想エンジンの紹介サイトへの入口（別サイト・新しいタブ）
+  function prismEntry() {
+    return `<a class="prism-entry" href="${PRISM_URL}" target="_blank" rel="noopener" aria-label="PRISMを知る（予想エンジンの紹介サイト・新しいタブで開きます）">
+      <img class="pe-mark" src="prism-mark.svg" alt="" width="64" height="64">
+      <span class="pe-txt"><small>予想エンジン PRISM</small><b>PRISMを知る</b><span>競馬AIは、ここまで進化した。</span></span>
+      <span class="pe-arr" aria-hidden="true">›</span><span class="pe-spec" aria-hidden="true"></span></a>`;
+  }
   function quickMenu() {
-    const items = [["stats", "#/stats", "成績", "AI 予想の成績と検証"], ["upcoming", "#/races?tab=upcoming", "これからのレース", "予想を公開するレース"],
+    const items = [["stats", "#/stats", "成績", "PRISM の成績と検証"], ["upcoming", "#/races?tab=upcoming", "これからのレース", "予想を公開するレース"],
       ["member", "#/member", "会員について", "無料会員・ゴールド会員"], ["about", "#/about", "サイトの説明", "予想の見方・使い方"],
       ["profile", "#/profile", "管理人の紹介", "このサイトを作った人"]];
     return `<nav class="qmenu" aria-label="主なページ">${items.map(([k, href, t, sub]) => `<a class="qbtn q-${k}" href="${href}">
@@ -486,6 +494,7 @@
     const chips = [["all", "すべて"], ...(hasG ? [["重賞", "重賞"]] : []), ...courses.map((c) => [c, c])]
       .map(([v, l], i) => `<button type="button" class="fchip ${i === 0 ? "on" : ""}" data-act="hf" data-v="${esc(v)}" aria-pressed="${i === 0}">${esc(l)}</button>`).join("");
     app.innerHTML = `
+      ${prismEntry()}
       ${quickMenu()}
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
       ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : empty("公開予定の予想はまだありません。"),
@@ -562,8 +571,8 @@
   }
 
   // ---------------- レース詳細 ----------------
-  const TIP_AI = "「AI予想」は、AI の能力評価に市場（オッズ）の情報を合わせた最終的な予想で、印（◎○▲△）もこの順です。"
-    + "「能力評価」は、オッズを一切使わずに AI が過去の成績・スピード指数・調教・騎手などから評価した能力の順位です。"
+  const TIP_AI = "「AI予想」は、予想エンジン PRISM の能力評価に市場（オッズ）の情報を合わせた最終的な予想で、印（◎○▲△）もこの順です。"
+    + "「能力評価」は、オッズを一切使わずに PRISM の 8 つの能力モデルが過去の成績・スピード指数・距離や馬場の適性・血統・騎手などから評価した能力の順位です。"
     + "能力評価の方が人気より高い馬（↑）は、AI が市場と違う見方をしている馬です。";
   function horsesTable(hs, field, posMap) {
     const hasAi = hs.some((h) => h.ai_rank != null);
@@ -815,7 +824,7 @@
     const sl = p.strategies_live || {}, sb2 = det ? (p.strategies_backtest || {}) : {};
     const n = p.n_pre ?? 0;
     const tipPub = `公開した ${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・検証 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
-      + "検証レースは、そのレースの年より前のデータだけで学習したモデルで予想したもので、未来の情報は使っていません。外れも含めて全件を集計しています。";
+      + "検証レースは、そのレースの年より前のデータだけで学習したモデルで予想したもので、未来の情報は使っていません。外れも含めて全件を集計しています。新馬戦は成績に含めていません（予想と買い方は表示します）。";
     const liveRows = n > 0 ? SORDER.filter((k) => sl[k]) : [];
     let pubHtml = blk(`公開レースの通算成績（参考）<small class="bt-sub">${num(n)} レース</small>`, liveRows.length ? `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm w-bar"></th></tr></thead><tbody>
       ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">すべて見送り（期待値が基準に届かなかったため）</td></tr>`;
@@ -835,11 +844,12 @@
     }
     if (!det) {
       const bt = pub.strategies_backtest || {};
-      html += blk("過去10年の検証", `<div class="scards">${SORDER.filter((k) => bt[k]).map((k) => `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(bt[k].full_roi)}</span>${roiBar(bt[k].full_roi)}<span class="ss">2016〜2026 年の通算回収率</span></div>`).join("")}</div>
+      html += blk("PRISM の検証成績", `<div class="scards">${SORDER.filter((k) => bt[k]).map((k) => { const v = bt[k].test_roi ?? bt[k].full_roi; return `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(v)}</span>${roiBar(v)}<span class="ss">2021〜2026 年の回収率（検証期間・新馬戦を除く）</span></div>`; }).join("")}</div>
+        <p class="note">各年はその年より前のデータだけで学習したモデルで計算した、過去の検証です。将来の利益を保証するものではありません。</p>
         ${memberLock("詳しい検証結果は会員限定です", "年ごとの回収率、選択期間と検証期間の比較、信頼区間、予想の精度（人気順との比較）などを見られます。")}`, { acc: "stat" });
     }
     if (Object.keys(sb2).length) {
-      html += blk("過去10年の検証", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間</th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
+      html += blk("PRISM の検証<small class=\"bt-sub\">新馬戦を除く</small>", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間</th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
         ${SORDER.filter((k) => sb2[k]).map((k) => { const s = sb2[k]; return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${esc(s.rule || "")}</div></td><td class="r">${pct(s.coverage, 0)}</td><td class="r">${pct(s.hit_rate, 0)}</td>
           <td class="r">${roiTag(s.dev_roi, 1)}</td><td class="r"><b>${roiTag(s.test_roi, 1)}</b></td><td class="r">${roiTag(s.full_roi, 1)}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
         </tbody></table></div><div class="sheet" style="margin-top:12px"><h3 class="h3s">年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>`,
@@ -848,7 +858,7 @@
     html += pubHtml + afterHtml;
     const acc = det ? p.accuracy : null;
     if (acc && acc.rows) {
-      html += blk("予想の精度", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>指標</th><th class="r">AI予想</th><th class="r">能力評価</th><th class="r">人気順</th></tr></thead><tbody>
+      html += blk("予想の精度（PRISM）", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>指標</th><th class="r">AI予想</th><th class="r">能力評価</th><th class="r">人気順</th></tr></thead><tbody>
         ${acc.rows.map((x) => `<tr><td>${esc(x.label)}${tip(x.note)}</td><td class="r"><b>${x.fmt === "n" ? (x.ai ?? 0).toFixed(2) : pct(x.ai)}</b></td><td class="r">${x.ai_only == null ? "—" : x.fmt === "n" ? x.ai_only.toFixed(2) : pct(x.ai_only)}</td>
           <td class="r">${x.fmt === "n" ? (x.mkt ?? 0).toFixed(2) : pct(x.mkt)}</td></tr>`).join("")}
         </tbody></table></div>`, { acc: "ai", badge: "会員", tip: (acc.period || "") + "。" + TIP_AI });
@@ -911,13 +921,15 @@
 
   function viewAbout() {
     setNav("about");
-    app.innerHTML = `<div class="h-sec"><h2>見方</h2></div><div class="steps">
-      <div class="sheet"><div><h3>AI予想と能力評価</h3><p><b>AI予想</b>：能力評価に市場（オッズ）の情報を合わせた最終的な予想。印（◎○▲△）と勝率はこの予想です。<br><b>能力評価</b>：オッズを一切使わず、スピード指数・上がり・近走・適性・調教・騎手などから AI が評価した能力の順位。人気より能力評価が高い馬は、AI が市場と違う見方をしている馬です。</p></div></div>
+    app.innerHTML = `<div class="h-sec"><h2>見方</h2></div>${prismEntry()}<div class="steps">
+      <div class="sheet"><div><h3>予想エンジン PRISM</h3><p>性質の違う 8 つの能力モデル（着順全体・3 着内・1 着・クラス別・距離別など）の評価を、1 つの確率にまとめる予想エンジンです。<b>One race. Multiple perspectives.</b> 仕組みと検証は <a href="${PRISM_URL}" target="_blank" rel="noopener">PRISM の紹介サイト</a> で詳しく紹介しています。</p></div></div>
+      <div class="sheet"><div><h3>AI予想と能力評価</h3><p><b>AI予想</b>：PRISM の能力評価に市場（オッズ）の情報を合わせた最終的な予想。印（◎○▲△）と勝率はこの予想です。<br><b>能力評価</b>：オッズを一切使わず、スピード指数・上がり・近走・適性・調教・騎手などから AI が評価した能力の順位。人気より能力評価が高い馬は、AI が市場と違う見方をしている馬です。</p></div></div>
       <div class="sheet"><div><h3>4 つの買い方</h3><p><b>AI推奨</b>：統合の期待値と AI 能力評価の期待値の両方が基準を超えた買い目だけを最大 3 点。無ければ見送り。<b>安定型</b>：複勝・ワイド中心で当たりやすさ重視。<b>バランス型</b>：毎レース期待値が最も高い買い目。<b>高配当型</b>：三連複・馬連の高配当を最大 3 点。</p></div></div>
       <div class="sheet"><div><h3>期待値</h3><p>1.00 で長期的に収支トントン。過去の同じ条件の買い目が実際にどれだけ戻ったかで補正しています。</p></div></div>
       <div class="sheet"><div><h3>会員の種類</h3><p>ゲスト・無料会員・ゴールド会員で見られる内容は <a href="#/member">会員について</a> をご覧ください。</p></div></div>
       <div class="sheet"><div><h3>検証レース</h3><p>発走後に予想したレースは、そのレースの年より前のデータだけで学習したモデル（このレースの結果を学習に使っていないモデル）で予想し直しています。出走馬・確定オッズ・過去の成績など、発走前に分かる情報だけを使うため、未来の情報は含みません。</p></div></div>
-      <div class="sheet"><div><h3>答え合わせ</h3><p>結果が出たら、AI予想の上位 3 頭の着順と、4 つの買い方それぞれの結果を表示します。外れたレースもそのまま残します。</p></div></div></div>`;
+      <div class="sheet"><div><h3>答え合わせ</h3><p>結果が出たら、AI予想の上位 3 頭の着順と、4 つの買い方それぞれの結果を表示します。外れたレースもそのまま残します。発走後の予想と買い目は、後から変更しません。</p></div></div>
+      <div class="sheet"><div><h3>新馬戦の扱い</h3><p>新馬戦（過去の成績が無い馬だけのレース）も予想と買い方を表示しますが、成績の集計には含めていません。</p></div></div></div>`;
   }
 
   // ---------------- ルーター（最後の操作だけを描画） ----------------

@@ -718,3 +718,17 @@ table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
   .filters{position:sticky}
 }
 @media print{.mast .nav,.acct,.tabbar,.foot{display:none}body{background:#fff}}
+
+/* PRISM: 予想エンジンの紹介サイトへの入口（墨の地にスペクトルの細い線。紙面のデザインの中で、ここだけ意図的に暗くして目に留める） */
+.prism-entry{position:relative;display:flex;align-items:center;gap:14px;margin:14px 0 16px;padding:14px 16px 16px;border-radius:14px;overflow:hidden;
+  background:#0b0d13;color:#f1f3f8;text-decoration:none;border:1px solid #1d2230;transition:transform .2s ease,box-shadow .2s ease}
+.prism-entry:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(11,13,19,.18)}
+.prism-entry:focus-visible{outline:2px solid #ffd23f;outline-offset:3px}
+.pe-mark{width:52px;height:52px;flex:0 0 auto}
+.pe-txt{display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.pe-txt small{font-size:.7rem;letter-spacing:.18em;color:#9aa3b4}
+.pe-txt b{font-size:1.18rem;letter-spacing:.04em;margin:2px 0}
+.pe-txt span{font-size:.85rem;color:#c9ced8}
+.pe-arr{margin-left:auto;font-size:1.6rem;color:#9aa3b4}
+.pe-spec{position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,#ff5a5f,#ff9f1c,#ffd23f,#7be495,#2ec4b6,#3a86ff,#8b5cf6,#d08cff)}
+@media (prefers-reduced-motion:reduce){.prism-entry{transition:none}}

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="PRISM">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".03"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".9"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" x2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".35"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- incoming beam: one race, one stream of data -->
+  <path d="M2 67 L37 60" stroke="#ffffff" stroke-width="3" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- refracted path inside the glass -->
+  <path d="M37 60 L90 56" stroke="url(#core)" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- eight perspectives -->
+  <g stroke-linecap="round" stroke-width="2.6" filter="url(#glow)">
+    <path d="M90 56 L127 28" stroke="#ff5a5f"/>
+    <path d="M90 56 L127 38" stroke="#ff9f1c"/>
+    <path d="M90 56 L127 47" stroke="#ffd23f"/>
+    <path d="M90 56 L127 56" stroke="#7be495"/>
+    <path d="M90 56 L127 65" stroke="#2ec4b6"/>
+    <path d="M90 56 L127 74" stroke="#3a86ff"/>
+    <path d="M90 56 L127 83" stroke="#8b5cf6"/>
+    <path d="M90 56 L127 92" stroke="#d08cff"/>
+  </g>
+  <!-- the prism -->
+  <path d="M64 10 L114 102 H14 Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M64 10 L64 102" stroke="#ffffff" stroke-opacity=".18" stroke-width="1.2"/>
+  <path d="M64 10 L44 102" stroke="#ffffff" stroke-opacity=".08" stroke-width="1"/>
+</svg>
