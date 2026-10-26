@@ -330,6 +330,16 @@
 
   // ---------------- トップ ----------------
   let homeDone = [], homeIdx = {};
+  // トップの「注目の結果」：公開したレースから、的中したレースと的中しなかったレースを約 2:1 で新しい順に選ぶ
+  //   （全レースの結果は「すべての結果」、成績の集計は成績ページで、選ばずにすべて表示）
+  const PICK_HIT = 8;
+  function pickHomeDone(done, idx) {
+    const known = done.filter((r) => idx?.[r.race_id]);
+    const hit = known.filter((r) => (idx[r.race_id].n_hit || 0) > 0).slice(0, PICK_HIT);
+    const miss = known.filter((r) => !((idx[r.race_id].n_hit || 0) > 0)).slice(0, hit.length ? Math.max(1, Math.round(hit.length / 2)) : 4);
+    const key = (r) => `${r.race_date || ""} ${r.post_time || ""}`;
+    return [...hit, ...miss].sort((a, b) => key(b).localeCompare(key(a)));
+  }
   function homeDoneList(filter) {
     const f = filter || "all";
     const list = f === "all" ? homeDone : f === "重賞" ? homeDone.filter((r) => /G[123]/.test(r.grade || "")) : homeDone.filter((r) => r.course === f);
@@ -478,10 +488,10 @@
     const t = todayStr();
     const [up, done, perf, idx] = await Promise.all([
       queryRaces({ from: t, status: "upcoming", order: "asc", limit: 60 }).catch(() => []),
-      queryRaces({ status: "finished", limit: 24 }).catch(() => []),
+      queryRaces({ status: "finished", limit: 80 }).catch(() => []),
       getPerf().catch(() => null), getIndex()]);
     if (tok !== routeTok) return;
-    homeDone = done; homeIdx = idx;
+    homeIdx = idx; homeDone = pickHomeDone(done, idx || {});
     const p = perf?.payload || {};
     const nextDay = up[0]?.race_date;
     const upDay = up.filter((r) => r.race_date === nextDay);
@@ -489,8 +499,8 @@
     const featured = await getSiteRow("featured").catch(() => null);
     if (tok !== routeTok) return;
     const must = mustSee(featured, up, t);
-    const courses = [...new Set(done.map((r) => r.course).filter(Boolean))];
-    const hasG = done.some((r) => /G[123]/.test(r.grade || ""));
+    const courses = [...new Set(homeDone.map((r) => r.course).filter(Boolean))];
+    const hasG = homeDone.some((r) => /G[123]/.test(r.grade || ""));
     const chips = [["all", "すべて"], ...(hasG ? [["重賞", "重賞"]] : []), ...courses.map((c) => [c, c])]
       .map(([v, l], i) => `<button type="button" class="fchip ${i === 0 ? "on" : ""}" data-act="hf" data-v="${esc(v)}" aria-pressed="${i === 0}">${esc(l)}</button>`).join("");
     app.innerHTML = `
@@ -499,8 +509,8 @@
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
       ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : empty("公開予定の予想はまだありません。"),
         { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
-      ${blk("最近の結果", `${done.length ? `<div class="fchips" role="group" aria-label="最近の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${done.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
-        { acc: "result", tip: "カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です（AI予想1位が勝っても、買い方の買い目が外れることがあります）。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
+      ${blk(`注目の結果<small class="bt-sub">ピックアップ</small>`, `${homeDone.length ? `<div class="fchips" role="group" aria-label="注目の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${homeDone.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
+        { acc: "result", tip: "最近公開したレースから、的中したレースを中心に選んで表示しています（すべてのレースではありません）。全レースの結果は「すべての結果」、成績の集計は成績ページをご覧ください。カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
   }
 
   // ---------------- レース一覧（検索・絞り込み・カレンダー） ----------------
