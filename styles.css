@@ -732,3 +732,48 @@ table.plan .ok{color:#2E7D32;font-weight:900}table.plan .ng{color:var(--muted)}
 .pe-arr{margin-left:auto;font-size:1.6rem;color:#9aa3b4}
 .pe-spec{position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,#ff5a5f,#ff9f1c,#ffd23f,#7be495,#2ec4b6,#3a86ff,#8b5cf6,#d08cff)}
 @media (prefers-reduced-motion:reduce){.prism-entry{transition:none}}
+
+
+/* =================== v53：枠順確定前の分析（PRISM ディープアナリシス） =================== */
+.qmenu{grid-template-columns:repeat(3,1fr)}
+@media (max-width:900px){.qmenu{grid-template-columns:repeat(2,1fr)}.qbtn.q-profile{grid-column:auto}}
+.dd-hero{margin:14px 0 4px;padding:18px 20px;background:#182738;color:#fff;border-radius:10px}
+.dd-hero small{display:block;font-size:.72rem;letter-spacing:.18em;color:#E2BC76}
+.dd-hero h1{margin:4px 0 4px;font-size:1.5rem;line-height:1.35;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dd-hero p{margin:4px 0 0;font-size:.86rem;line-height:1.75;color:#D5DDE3}
+.dd-warn{border-color:#C49B58;font-size:.84rem;line-height:1.7;color:var(--ink2)}
+.dd-cap{margin:8px 0 0;line-height:1.7}
+.ddbars{margin:2px 0 14px}
+.ddb{display:grid;grid-template-columns:minmax(120px,30%) 1fr 56px;align-items:center;gap:10px;min-height:28px;font-size:.88rem}
+.ddn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ddt{display:block;height:14px;background:#EDF0F1;border-radius:4px;overflow:hidden}
+.ddt i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#9B2741,#D77D6D)}
+.ddb b{text-align:right;font-family:var(--num)}
+table.t.ddtab tr.top td{background:#F8EEE9}
+.dd-j{display:block;font-size:.72rem;color:var(--muted)}
+.ddsc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ddsc-c h3{font-size:.95rem;margin:0 0 6px;display:flex;align-items:center;gap:6px}
+.dd-main{font-size:.68rem;font-weight:700;color:#fff;background:#AF283E;border-radius:3px;padding:1px 6px}
+.ddsc-c table.t td{padding:5px 6px}
+.dd-h3{font-size:1rem;margin:16px 0 8px}
+.ddp{display:grid;grid-template-columns:96px 1fr 92px;align-items:center;gap:10px;min-height:28px;font-size:.86rem}
+.ddpt{display:flex;height:16px;border-radius:4px;overflow:hidden}.ddpt i{display:block;height:100%}
+.ddpt .f,.ddlg.f{background:#A12E43}.ddpt .m,.ddlg.m{background:#CAA05B}.ddpt .b,.ddlg.b{background:#5D7A8D}
+.ddlg{display:inline-block;width:10px;height:10px;margin:0 4px 0 10px;vertical-align:-1px}.ddlg:first-child{margin-left:0}
+.ddh{display:grid;gap:8px}
+.dd-horse{border:1px solid var(--rule);border-radius:6px;background:#fff}
+.dd-horse > summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:10px 12px}
+.dd-horse > summary::-webkit-details-marker{display:none}
+.dd-horse[open] > summary{border-bottom:1px solid var(--rule)}
+.ddr{color:#AF283E;font-family:var(--num)}.ddhn{font-size:1.02rem}.ddhp{margin-left:auto;font-size:.84rem;font-family:var(--num)}
+.dd-md{padding:4px 14px 12px}.dd-md h5{font-size:.95rem;color:#A8283F;margin:14px 0 4px;padding-bottom:3px;border-bottom:1px solid var(--rule)}
+.dd-md p,.md li{line-height:1.8}
+.dd-i .must-go{white-space:nowrap}
+@media (max-width:640px){
+  .hide-sm{display:none}
+  .ddsc{grid-template-columns:1fr}
+  .ddb{grid-template-columns:minmax(96px,38%) 1fr 48px;font-size:.82rem}
+  .ddp{grid-template-columns:72px 1fr 78px;font-size:.8rem}
+  .dd-hero h1{font-size:1.25rem}
+  .ddhp{margin-left:0}
+}
