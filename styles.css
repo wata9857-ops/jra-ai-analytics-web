@@ -777,3 +777,61 @@ table.t.ddtab tr.top td{background:#F8EEE9}
   .dd-hero h1{font-size:1.25rem}
   .ddhp{margin-left:0}
 }
+
+/* =================== v59：能力のディープ分析（S〜D 評価・マトリクス・図解・枠順確定後） =================== */
+.dd-st{display:inline-block;font-size:.68rem;font-weight:700;border-radius:3px;padding:1px 7px;margin-left:6px;background:#E6ECF3;color:#1F3A5F;vertical-align:middle;white-space:nowrap}
+.dd-st.post{background:#E9C68D;color:#182738}
+.dd-hero .dd-st{font-size:.72rem}
+.dd-note{font-size:.8rem;color:var(--muted);margin:8px 2px 0;line-height:1.7}
+.dd-lead{margin:0 0 10px;font-size:.9rem}
+.prose-dd p{margin:0 0 8px;line-height:1.85;font-size:.93rem}
+.gc{display:inline-block;min-width:20px;padding:0 5px;border-radius:3px;text-align:center;font-weight:700;font-size:.74rem;line-height:1.65;font-family:var(--num)}
+.gc.big{font-size:.92rem;min-width:26px;padding:1px 6px}
+.gS{background:#8F2238;color:#fff}.gA{background:#C4536A;color:#fff}.gB{background:#ECCFD4;color:#4A2A31}.gC{background:#F5ECEE;color:#6B5A5E}.gD{background:#EEF0F2;color:#7A848D}.gN{background:#fff;color:#B0B7BD;border:1px solid #E1E5E8}
+.ddb{grid-template-columns:minmax(120px,30%) 1fr 56px 28px}
+.ddb .gc{justify-self:end}
+table.mx{border-collapse:collapse;background:#fff;font-size:.82rem;min-width:620px;width:100%}
+.mx th{background:#182738;color:#fff;font-weight:700;padding:7px 4px;text-align:center;font-size:.76rem;white-space:nowrap}
+.mx th.l{text-align:left}
+.mx td{text-align:center;padding:4px 3px;border-bottom:1px solid #ECEEF0}
+.mx td.rk{color:var(--muted)}.mx td.nmc{text-align:left;white-space:nowrap;position:sticky;left:0;background:#fff}
+.mx th:nth-child(2){position:sticky;left:0;z-index:1}
+.mx td.tot{background:#FAF6F0}
+.gt{color:var(--muted);font-size:.68rem;margin-left:4px}
+.glg{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.76rem;color:var(--muted);margin:10px 0 4px}
+.glg .gc{margin-right:-8px}
+.fhs{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:.82rem;padding:6px 2px}.fhs b{color:#A8283F;margin-right:6px}
+.dd-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:10px}
+.dd-pk{border:1px solid var(--rule);border-top:3px solid #AF283E;background:#fff;padding:10px 12px;border-radius:4px}
+.dd-pk:nth-child(n+4){border-top-color:#C49B58}
+.dd-pk small{display:block;font-weight:700;color:#AF283E;font-size:.72rem;letter-spacing:.06em}
+.dd-pk:nth-child(n+4) small{color:#9A7535}
+.dd-pk b{display:flex;align-items:center;gap:8px;font-size:1.05rem;margin:2px 0}
+.dd-pk .muted{font-size:.76rem}.dd-pk p{margin:6px 0 0;font-size:.86rem;line-height:1.7}
+.dd-gate{font-size:.74rem;font-weight:700;background:#E9C68D;color:#182738;border-radius:3px;padding:0 6px}
+.dd-horse > summary{align-items:center}
+.dd-hb{padding:6px 14px 12px}
+.dd-sum{background:#FAF6F0;border-left:3px solid #AF283E;padding:8px 12px;margin:6px 0 10px;line-height:1.8;font-size:.92rem}
+.dd-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:6px}
+.dd-two h4{font-size:.9rem;color:#A8283F;margin:8px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--rule)}
+.gbar{display:grid;grid-template-columns:44px 1fr 26px;gap:8px;align-items:center;min-height:21px;font-size:.82rem}
+.gbt{display:block;height:9px;background:#F1F3F4;border-radius:3px;overflow:hidden}.gbt i{display:block;height:100%;border-radius:3px}
+.gbt i.gS{background:#8F2238}.gbt i.gA{background:#C4536A}.gbt i.gB{background:#DFA9B3}.gbt i.gC{background:#EAD3D8}.gbt i.gD{background:#DFE3E7}
+.cbh{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);padding-left:52px}
+.cb{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;min-height:21px;font-size:.82rem}
+.cbt{position:relative;display:block;height:9px;background:linear-gradient(90deg,transparent calc(50% - .5px),#B5BDC4 calc(50% - .5px),#B5BDC4 calc(50% + .5px),transparent calc(50% + .5px))}
+.cbt i{position:absolute;top:0;height:100%;border-radius:3px}.cbt i.pos{left:50%;background:#A12E43}.cbt i.neg{right:50%;background:#2F6AA8}
+.dd-tl{font-size:.84rem;background:#F4F5F6;padding:6px 10px;margin:8px 0}
+.dd-ul{margin:0;padding-left:1.1em;font-size:.86rem;line-height:1.75}.dd-ul.good li::marker{color:#477F74}.dd-ul.bad li::marker{color:#A8283F}
+.dd-gl dt{font-weight:700;color:#A8283F;margin-top:8px}.dd-gl dd{margin:2px 0 0;font-size:.88rem;line-height:1.75}
+.dd-home{margin-top:12px;border-top:1px dashed var(--rule);padding-top:10px}
+.dd-home-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.dd-home-h b{font-size:.95rem}.dd-home-h small{color:var(--muted);font-size:.74rem}
+svg.chart{display:block;width:100%;max-width:760px;height:auto;margin:6px auto}
+svg .ax{font-size:7.2px;fill:#637181}svg .lb{font-size:7.8px;fill:#263443}svg .vl{font-size:7.4px;fill:#263443;font-weight:700}
+svg .hl{font-size:7.4px;fill:#263443}svg .zl{font-size:8px;fill:#637181;font-weight:700}
+@media (max-width:640px){
+  .dd-two{grid-template-columns:1fr;gap:4px}
+  .fhs{grid-template-columns:1fr}
+  .ddb{grid-template-columns:minmax(96px,36%) 1fr 46px 24px}
+  .dd-picks{grid-template-columns:1fr}
+}

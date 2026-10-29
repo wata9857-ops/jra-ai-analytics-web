@@ -365,7 +365,7 @@
   }
   function quickMenu() {
     const items = [["stats", "#/stats", "成績", "PRISM の成績と検証"], ["upcoming", "#/races?tab=upcoming", "これからのレース", "予想を公開するレース"],
-      ["analysis", "#/analysis", "枠順確定前の分析", "PRISM ディープアナリシス"],
+      ["analysis", "#/analysis", "能力のディープ分析", "枠順確定前・確定後"],
       ["member", "#/member", "会員について", "無料会員・ゴールド会員"], ["about", "#/about", "サイトの説明", "予想の見方・使い方"],
       ["profile", "#/profile", "管理人の紹介", "このサイトを作った人"]];
     return `<nav class="qmenu" aria-label="主なページ">${items.map(([k, href, t, sub]) => `<a class="qbtn q-${k}" href="${href}">
@@ -412,95 +412,125 @@
     }).join("")}</div>`;
   }
 
-  // ---------------- 枠順確定前の分析（PRISM ディープアナリシス） ----------------
+  // ---------------- PRISM ディープアナリシス（枠順確定前・確定後の能力分析） ----------------
   //   一覧：performance の "dd_index"（誰でも）／中身：member_perf の "dd:<キー>"（ログインした会員だけ・RLS）
   //   予想（印・買い目）とは別の、オッズを使わない能力の分析。管理人が PC で公開したレースだけ
-  const ddIndex = () => (DEMO ? Promise.resolve(window.__DD_DEMO__ ? { payload: { items: [window.__DD_DEMO__] } } : null) : getPerfRow("dd_index"));
-  const ddDetail = (k) => (DEMO ? Promise.resolve(window.__DD_DEMO__ || null) : getMemberPerf("dd:" + k));
+  const ddIndex = () => (DEMO ? Promise.resolve(window.__DD_DEMO__ ? { payload: { items: [].concat(window.__DD_DEMO__) } } : null) : getPerfRow("dd_index"));
+  const ddDetail = (k) => (DEMO ? Promise.resolve([].concat(window.__DD_DEMO__ || []).find((x) => x.key === k) || null) : getMemberPerf("dd:" + k));
   const ddMeta = (x) => `${esc(x.course)}・${esc(x.surface)}${esc(x.distance)}m${x.class ? "・" + esc(x.class) : ""}・${esc(x.n)}頭`;
-  const DD_NOTE = "PRISM の 8 つの能力モデルで、枠順を何十通りにも並べ替えて計算した「枠順に左右されない」能力の分析です。オッズは使っていません。"
-    + "予想（印・勝率・買い目）とは別物で、馬券の期待値や回収率を示すものではありません。出走・騎手・馬場は分析した時点の想定です。";
+  const ddStage = (x) => (x.stage === "post" ? '<span class="dd-st post">枠順確定後</span>' : '<span class="dd-st">枠順確定前</span>');
+  const GCLS = { S: "gS", A: "gA", B: "gB", C: "gC", D: "gD" };
+  const gradeOf = (v) => (v == null ? "－" : v >= 85 ? "S" : v >= 65 ? "A" : v >= 40 ? "B" : v >= 20 ? "C" : "D");
+  const gchip = (g, big) => `<span class="gc ${GCLS[g] || "gN"}${big ? " big" : ""}">${esc(g)}</span>`;
+  function ddCard(x, today) {
+    const d = new Date(x.date + "T00:00:00+09:00"), wd = "日月火水木金土"[d.getDay()];
+    return `<a class="must-i dd-i" href="#/analysis/${encodeURIComponent(x.key)}"><span class="rc-date ${wd === "土" ? "sat" : wd === "日" ? "sun" : ""}"><b>${d.getMonth() + 1}/${d.getDate()}</b><small>${wd}</small></span>
+      <span class="must-m"><span class="rc-title">${x.grade ? gradeBadge(x.grade) : ""}<b>${esc(x.name)}</b>${ddStage(x)}</span>
+      <span class="rc-meta">${ddMeta(x)}</span><span class="must-c">PRISM の見立て「${esc(x.shape)}」</span></span>
+      <span class="must-go">${x.date >= today ? "分析を見る ›" : "<small>終了</small> ›"}</span></a>`;
+  }
   async function viewAnalysisList(tok) {
     setNav("analysis");
     const row = await ddIndex().catch(() => null);
     if (tok !== routeTok) return;
     const items = row?.payload?.items || [];
     const today = todayStr();
-    const card = (x) => {
-      const d = new Date(x.date + "T00:00:00+09:00"), wd = "日月火水木金土"[d.getDay()];
-      return `<a class="must-i dd-i" href="#/analysis/${encodeURIComponent(x.key)}"><span class="rc-date ${wd === "土" ? "sat" : wd === "日" ? "sun" : ""}"><b>${d.getMonth() + 1}/${d.getDate()}</b><small>${wd}</small></span>
-        <span class="must-m"><span class="rc-title">${x.grade ? gradeBadge(x.grade) : ""}<b>${esc(x.name)}</b></span>
-        <span class="rc-meta">${ddMeta(x)}</span><span class="must-c">見立て「${esc(x.shape)}」・枠順 ${esc(x.n_draws)} 通り・${esc(x.going)}馬場想定</span></span>
-        <span class="must-go">${x.date >= today ? "分析を見る ›" : "<small>終了したレース</small> ›"}</span></a>`;
-    };
     const up = items.filter((x) => x.date >= today), past = items.filter((x) => x.date < today);
-    app.innerHTML = `${backBar("枠順確定前の分析")}
-      <div class="dd-hero"><small>PRISM DEEP ANALYSIS</small><h1>枠順確定前の分析</h1><p>${esc(DD_NOTE)}</p></div>
-      ${blk("これからのレース", up.length ? `<div class="must">${up.map(card).join("")}</div>` : empty("公開中の分析はまだありません。重賞を中心に、枠順の発表前に公開します。"), { acc: "ai" })}
-      ${past.length ? blk("終了したレース", `<div class="must">${past.map(card).join("")}</div>`, { acc: "info", closed: true }) : ""}`;
+    app.innerHTML = `${backBar("PRISM ディープアナリシス")}
+      <div class="dd-hero"><small>PRISM DEEP ANALYSIS</small><h1>能力のディープ分析</h1>
+      <p>オッズを使わず、PRISM の 8 つの能力モデルで各馬の強さを分析します。要素ごとの S〜D 評価・展開・枠の影響まで、ひと目で比べられます。
+      枠順の発表前は「枠順確定前」、発表後は実際の枠で計算した「枠順確定後」の分析を公開します。</p></div>
+      ${blk("これからのレース", up.length ? `<div class="must">${up.map((x) => ddCard(x, today)).join("")}</div>` : empty("公開中の分析はまだありません。"), { acc: "ai" })}
+      ${past.length ? blk("終了したレース", `<div class="must">${past.map((x) => ddCard(x, today)).join("")}</div>`, { acc: "info", closed: true }) : ""}`;
   }
   function ddBars(H) {
     const mx = Math.max(...H.map((h) => h.p || 0), 0.01);
     return `<div class="ddbars">${H.map((h) => `<div class="ddb"><span class="ddn">${String(h.rank).padStart(2, "0")} ${esc(h.horse)}</span>
-      <span class="ddt"><i style="width:${((h.p || 0) / mx * 100).toFixed(1)}%"></i></span><b>${pct(h.p)}</b></div>`).join("")}</div>`;
+      <span class="ddt"><i style="width:${((h.p || 0) / mx * 100).toFixed(1)}%"></i></span><b>${pct(h.p)}</b>${gchip(h.grade)}</div>`).join("")}</div>`;
   }
-  function ddTable(P) {
-    const H = P.horses;
-    return `<div class="tbl-wrap"><table class="t ddtab"><thead><tr><th class="c">${esc(P.label)}</th><th>馬名</th><th class="r">${esc(P.index_label)}</th>
-      <th class="r">勝率</th><th class="r hide-sm">2着内</th><th class="r">3着内</th><th class="r hide-sm">内枠なら</th><th class="r hide-sm">外枠なら</th><th class="c">脚質</th>
-      <th class="r hide-sm">±200m最高指数</th></tr></thead><tbody>
-      ${H.map((h, i) => `<tr class="${i < 3 ? "top" : ""}"><td class="c"><b>${h.rank}</b></td><td class="nm">${esc(h.horse)}<small class="dd-j">${esc(h.jockey || "")}</small></td>
-        <td class="r">${h.idx != null ? h.idx.toFixed(1) : "—"}</td><td class="r"><b>${pct(h.p)}</b></td><td class="r hide-sm">${pct(h.p2)}</td><td class="r">${pct(h.p3)}</td>
-        <td class="r hide-sm">${pct(h.band?.["内枠"])}</td><td class="r hide-sm">${pct(h.band?.["外枠"])}</td><td class="c">${esc(h.style || "—")}</td>
-        <td class="r hide-sm">${h.best != null ? h.best.toFixed(1) : "—"}</td></tr>`).join("")}</tbody></table></div>
-      <p class="muted dd-cap">${esc(P.label_help)} ${esc(P.index_help)}</p>`;
+  function ddMatrix(P) {
+    const K = P.factor_keys || [];
+    return `<div class="tbl-wrap"><table class="mx"><thead><tr><th>順</th><th class="l">馬名</th><th>総合</th>${K.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead><tbody>
+      ${P.horses.map((h) => `<tr><td class="rk">${h.rank}</td><td class="nmc">${esc(h.horse)}${h.umaban ? `<small class="gt">${h.waku}枠${h.umaban}</small>` : ""}</td>
+        <td class="tot">${gchip(h.grade, true)}</td>${K.map((k) => `<td>${gchip(gradeOf(h.factors?.[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div class="glg">${["S", "A", "B", "C", "D"].map((g, i) => `${gchip(g)}${["とても良い", "良い", "普通", "やや弱い", "弱い"][i]}`).join("")}</div>
+      <details class="more"><summary>要素の見方</summary><div class="fhs">${K.map((k) => `<div><b>${esc(k)}</b>${esc(P.factor_help?.[k] || "")}</div>`).join("")}</div></details>`;
+  }
+  function ddGradeBars(F, K) {
+    return `<div class="gbs">${K.map((k) => { const v = F?.[k], g = gradeOf(v);
+      return `<div class="gbar"><span>${esc(k)}</span><span class="gbt"><i class="${GCLS[g] || ""}" style="width:${v == null ? 0 : Math.max(v, 3)}%"></i></span>${gchip(g)}</div>`; }).join("")}</div>`;
+  }
+  function ddContrib(C, mx) {
+    const items = Object.entries(C || {}).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
+    return `<div class="cbs"><div class="cbh"><span>評価を下げた</span><span>評価を上げた</span></div>${items.map(([k, v]) => {
+      const w = mx > 0 ? Math.min(Math.abs(v) / mx * 50, 50) : 0;
+      return `<div class="cb"><span>${esc(k)}</span><span class="cbt"><i class="${v >= 0 ? "pos" : "neg"}" style="width:${w.toFixed(1)}%"></i></span></div>`; }).join("")}</div>`;
   }
   function ddScen(P) {
-    const order = ["遅い流れ", "平均的な流れ", "速い流れ"];
-    return `<div class="ddsc">${order.map((pn) => `<div class="ddsc-c"><h3>${esc(pn)}${pn === P.pace.main ? '<span class="dd-main">想定の本線</span>' : ""}</h3>
-      <table class="t"><thead><tr><th class="c">順</th><th>馬名</th><th class="r">有力度</th><th class="r">流れの補正</th></tr></thead><tbody>
-      ${(P.scenarios[pn] || []).map((x, i) => `<tr><td class="c">${i + 1}</td><td class="nm">${esc(x.horse)}</td><td class="r">${pct(x.share)}</td><td class="r">×${(x.fac ?? 1).toFixed(2)}</td></tr>`).join("")}
+    return `<div class="ddsc">${["遅い流れ", "平均的な流れ", "速い流れ"].map((pn) => `<div class="ddsc-c"><h3>${esc(pn)}${pn === P.pace.main ? '<span class="dd-main">本線</span>' : ""}</h3>
+      <table class="t"><thead><tr><th class="c">順</th><th>馬名</th><th class="r">有力度</th><th class="c">相性</th></tr></thead><tbody>
+      ${(P.scenarios[pn] || []).map((x, i) => `<tr><td class="c">${i + 1}</td><td class="nm">${esc(x.horse)}</td><td class="r">${pct(x.share)}</td><td class="c">${esc(x.mark || "")}</td></tr>`).join("")}
       </tbody></table></div>`).join("")}</div>
-      <p class="muted dd-cap">有力度＝PRISM の勝率×流れの補正（合計100%に正規化）。流れの補正は、このコースでその脚質の馬がそのペースのときの勝率の倍率と、その馬自身のそのペースでの成績から計算した目安（0.5〜2倍に制限）で、PRISM の確率そのものではありません。</p>`;
+      <p class="muted dd-cap">相性：◎よく向く ○向く －普通 △やや不向き ×不向き。有力度は PRISM の勝率に相性を掛けたもの。</p>`;
   }
-  function ddPos(P) {
-    const W = P.course_ctx?.win_pos || {};
-    const rows = ["全体", "速い流れ", "平均的な流れ", "遅い流れ"].filter((k) => W[k]);
-    if (!rows.length) return "";
-    return `<h3 class="dd-h3">直線に向けた位置取り（過去の勝ち馬の4コーナー）</h3><div class="ddpos">${rows.map((k) => { const v = W[k];
-      return `<div class="ddp"><span>${esc(k)}</span><span class="ddpt"><i class="f" style="width:${v.front * 100}%"></i><i class="m" style="width:${v.mid * 100}%"></i><i class="b" style="width:${v.back * 100}%"></i></span>
-        <small>${Math.round(v.front * 100)} / ${Math.round(v.mid * 100)} / ${Math.round(v.back * 100)}</small></div>`; }).join("")}</div>
-      <p class="muted dd-cap"><span class="ddlg f"></span>前（先頭から25%以内）<span class="ddlg m"></span>中団<span class="ddlg b"></span>後方。数字は ％（${esc(W["全体"]?.n ?? "")}レース）。</p>`;
+  function ddHorse(h, P, mx) {
+    const rec = (h.records || []).slice(0, 6), rr = h.recent || [];
+    return `<details class="dd-horse"${h.rank === 1 ? " open" : ""}><summary><b class="ddr">${h.rank}位</b>${gchip(h.grade, true)}<b class="ddhn">${esc(h.horse)}</b>
+      ${h.umaban ? `<span class="dd-gate">${h.waku}枠${h.umaban}番</span>` : ""}<span class="ddhp">勝率 ${pct(h.p)}・3着内 ${pct(h.p3, 0)}</span></summary>
+      <div class="dd-hb"><p class="dd-sum">${esc(h.summary)}</p>
+      <div class="dd-two"><div><h4>要素別の評価</h4>${ddGradeBars(h.factors, P.factor_keys || [])}</div><div><h4>PRISM の評価の内訳</h4>${ddContrib(h.contrib, mx)}</div></div>
+      <p class="dd-tl">展開：${esc(h.fit_mark)} ${esc(h.fit_word)}（脚質 ${esc(h.style || "—")}）${h.gate_word ? `　枠：${h.waku}枠${h.umaban}番は${esc(h.gate_word)}` : ""}</p>
+      <div class="dd-two"><div><h4>良いところ</h4>${h.good?.length ? `<ul class="dd-ul good">${h.good.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : '<p class="muted">目立つ強みは少なめです。</p>'}</div>
+        <div><h4>気になるところ</h4>${h.bad?.length ? `<ul class="dd-ul bad">${h.bad.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : '<p class="muted">目立った不安はありません。</p>'}</div></div>
+      <div class="dd-two"><div><h4>条件別の成績</h4>${rec.length ? `<table class="t compact"><thead><tr><th>条件</th><th class="r">出走</th><th class="r">1着</th><th class="r">3着内</th></tr></thead><tbody>
+        ${rec.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${v.n}</td><td class="r">${v.win}</td><td class="r">${v.top3}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">出走記録がありません。</p>'}</div>
+        <div><h4>最近 5 走</h4>${rr.length ? `<table class="t compact"><thead><tr><th>日付</th><th>レース</th><th class="r">着順</th><th class="r">指数</th></tr></thead><tbody>
+        ${rr.map((x) => `<tr><td>${esc(x.date.slice(3))}</td><td>${esc(x.race)}<small class="muted"> ${esc(x.cond)}</small></td><td class="r">${x.pos ? `${x.pos}<small>/${x.field || ""}</small>` : "—"}</td><td class="r">${x.sf != null ? Math.round(x.sf) : "—"}</td></tr>`).join("")}
+        </tbody></table>` : '<p class="muted">記録なし</p>'}</div></div>
+      <details class="more"><summary>さらにくわしい解説（数字の根拠）</summary><div class="md dd-md">${md(h.md)}</div></details></div></details>`;
   }
   async function viewAnalysis(tok, key) {
     setNav("analysis");
     const row = await ddIndex().catch(() => null);
     if (tok !== routeTok) return;
     const meta = (row?.payload?.items || []).find((x) => x.key === key);
-    const head = (x) => `<div class="dd-hero"><small>PRISM DEEP ANALYSIS・枠順確定前の分析</small>
-      <h1>${x.grade ? gradeBadge(x.grade) : ""}${esc(x.name)}</h1><p class="dd-meta">${fmtDate(x.date, true)}・${ddMeta(x)}・${esc(x.going)}馬場想定・枠順 ${esc(x.n_draws)} 通り</p></div>`;
-    if (!meta) { app.innerHTML = `${backBar("枠順確定前の分析")}${empty("この分析は公開されていません。")}`; return; }
+    const head = (x) => `<div class="dd-hero"><small>PRISM DEEP ANALYSIS</small>
+      <h1>${x.grade ? gradeBadge(x.grade) : ""}${esc(x.name)}${ddStage(x)}</h1><p class="dd-meta">${fmtDate(x.date, true)}・${ddMeta(x)}・${esc(x.going)}馬場想定</p></div>`;
+    if (!meta) { app.innerHTML = `${backBar("能力のディープ分析")}${empty("この分析は公開されていません。")}`; return; }
     if (!state.session && !DEMO) {
-      app.innerHTML = `${backBar("枠順確定前の分析")}${head(meta)}${memberLock("分析の中身は会員限定です", "無料会員に登録すると、実力順位・各馬の勝率・展開のシナリオ・全頭の詳しい解説を見られます。")}`;
+      app.innerHTML = `${backBar("能力のディープ分析")}${head(meta)}${memberLock("分析の中身は会員限定です", "無料会員に登録すると、要素別の S〜D 評価・注目の馬・展開・全頭の解説を見られます。")}`;
       return;
     }
     const P = await ddDetail(key).catch(() => null);
     if (tok !== routeTok) return;
-    if (!P) { app.innerHTML = `${backBar("枠順確定前の分析")}${head(meta)}${noData()}`; return; }
+    if (!P) { app.innerHTML = `${backBar("能力のディープ分析")}${head(meta)}${noData()}`; return; }
     const H = P.horses || [];
-    const t3 = H.slice(0, 3).reduce((a, h) => a + (h.p || 0), 0);
-    const opts = { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", ...JST };
-    app.innerHTML = `${backBar("枠順確定前の分析", true)}${head(P)}
-      <div class="alert warn dd-warn">${esc(DD_NOTE)}<br><small>分析した日時：${esc(new Date(P.made_at).toLocaleString("ja-JP", opts))}</small></div>
-      ${figs([{ l: "PRISM の見立て", v: esc(P.shape), key: true }, { l: "上位3頭の合計勝率", v: pct(t3, 0) }, { l: "実質的な有力馬", v: `${esc(P.eff)}<small>頭分</small>` },
-        { l: "逃げ候補", v: `${esc(P.pace.L)}<small>頭</small>`, s: esc(P.pace.label) }], "f4")}
-      ${blk(`${esc(P.label)}・全${H.length}頭`, ddBars(H) + ddTable(P), { acc: "ai", tip: "勝率は、枠順を並べ替えた PRISM の計算の平均（オッズ不使用）。2着内・3着内は PRISM の学習と同じ着順モデル（Plackett–Luce）で計算。" })}
-      ${blk("レース展望", `<div class="md">${md(P.race_md)}</div>${ddPos(P)}`, { acc: "info" })}
-      ${blk("展開のシナリオ別の有力度", ddScen(P), { acc: "info" })}
-      ${blk("各馬の詳しい分析", `<div class="ddh">${H.map((h) => `<details class="dd-horse"${h.rank === 1 ? " open" : ""}><summary><b class="ddr">${h.rank}位</b><b class="ddhn">${esc(h.horse)}</b>
-        <span class="muted">${esc([h.sexage, h.jockey, h.trainer].filter(Boolean).join("・"))}</span><span class="ddhp">勝率 ${pct(h.p)}・3着内 ${pct(h.p3, 0)}</span></summary>
-        <div class="md dd-md">${md(h.md)}</div></details>`).join("")}</div>`, { acc: "ai" })}
-      ${blk("分析の方法", `<div class="md">${md(P.method_md)}</div>`, { acc: "info", closed: true })}`;
+    const mx = Math.max(0, ...H.map((h) => Math.max(0, ...Object.values(h.contrib || {}).map(Math.abs))));
+    const opts = { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", ...JST };
+    const C = P.charts || {};
+    const rp = Object.fromEntries((P.race_plain || []).map(([h, l]) => [h, l]));
+    const para = (k) => (rp[k] || []).map((x) => `<p>${esc(x)}</p>`).join("");
+    app.innerHTML = `${backBar("能力のディープ分析", true)}${head(P)}
+      <p class="dd-note">オッズを使わない能力の分析です（${esc(new Date(P.made_at).toLocaleString("ja-JP", opts))} 時点）。${esc(P.disclaimer || "")}</p>
+      ${figs([{ l: "PRISM の見立て", v: esc(P.shape), key: true }, { l: "上位 3 頭の勝率の合計", v: pct(P.top3, 0) },
+        { l: "勝つ可能性が十分ある馬", v: `約${Math.round(P.eff)}<small>頭</small>` }, { l: "想定のペース", v: esc(P.pace_word || "") }], "f4")}
+      ${blk("まず、今回の結論", `<div class="prose-dd">${para("レースの全体像")}</div><div class="dd-picks">${(P.picks || []).map((k) => `<div class="dd-pk">
+        <small>${esc(k.label)}</small><b>${esc(k.horse)} ${gchip(k.grade)}</b><span class="muted">${esc(k.why)}</span><p>${esc(k.summary)}</p></div>`).join("")}</div>`, { acc: "ai" })}
+      ${blk(`実力順位・全${H.length}頭`, ddBars(H), { acc: "ai", tip: "PRISM が計算した勝率（オッズ不使用）。右の S〜D は総合評価。" })}
+      ${blk("要素別マトリクス", `<p class="dd-lead">横に S・A が多い馬ほど、どの面から見ても強い馬です。縦に見ると、その要素で一番の馬が分かります。</p>${ddMatrix(P)}`, { acc: "ai" })}
+      ${blk("時計と展開", `<div class="prose-dd">${para("勝つために必要な時計")}</div>${C.speed || ""}<h3 class="dd-h3">予想される隊列</h3>
+        <div class="prose-dd">${para("展開の見通し")}</div>${C.formation || ""}<p class="muted dd-cap">赤 = 実力 1〜3 位、青 = 4〜6 位、灰 = 7 位以下（数字は実力順位）。左ほど前に行く馬です。</p>`, { acc: "info" })}
+      ${blk("ペース別の有力馬", `<div class="prose-dd">${para("ペース別の見どころ")}</div>${ddScen(P)}`, { acc: "info" })}
+      ${blk(P.stage === "post" ? "実際の枠の有利・不利" : "枠の影響", `<div class="prose-dd">${para("枠の影響")}</div>${C.gate || ""}`, { acc: "info" })}
+      ${blk("各馬の分析", `<div class="ddh">${H.map((h) => ddHorse(h, P, mx)).join("")}</div>`, { acc: "ai" })}
+      ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
+  }
+  // トップの「次の開催」：枠順確定後の能力分析
+  function ddHomeList(items, day) {
+    const today = todayStr();
+    const post = (items || []).filter((x) => x.stage === "post" && x.date >= today);
+    if (!post.length) return "";
+    return `<div class="dd-home"><div class="dd-home-h"><b>能力のディープ分析</b><small>枠順確定後・実際の枠で計算</small></div><div class="must">${post.map((x) => ddCard(x, today)).join("")}</div></div>`;
   }
 
   // ---------------- 会員について・管理人の紹介 ----------------
@@ -589,8 +619,9 @@
     const nextDay = up[0]?.race_date;
     const upDay = up.filter((r) => r.race_date === nextDay);
     // v45: トップの一番上は「メニューのボタン」と「今週の必見レース」。買い方ごとの回収率は成績ページだけに表示
-    const featured = await getSiteRow("featured").catch(() => null);
+    const [featured, ddRow] = await Promise.all([getSiteRow("featured").catch(() => null), ddIndex().catch(() => null)]);
     if (tok !== routeTok) return;
+    const ddHome = ddHomeList(ddRow?.payload?.items, nextDay);
     const must = mustSee(featured, up, t);
     const courses = [...new Set(homeDone.map((r) => r.course).filter(Boolean))];
     const hasG = homeDone.some((r) => /G[123]/.test(r.grade || ""));
@@ -600,7 +631,7 @@
       ${prismEntry()}
       ${quickMenu()}
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
-      ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : empty("公開予定の予想はまだありません。"),
+      ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", (upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : (ddHome ? "" : empty("公開予定の予想はまだありません。"))) + ddHome,
         { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
       ${blk(`注目の結果<small class="bt-sub">ピックアップ</small>`, `${homeDone.length ? `<div class="fchips" role="group" aria-label="注目の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${homeDone.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
         { acc: "result", tip: "最近公開したレースから、的中したレースを中心に選んで表示しています（すべてのレースではありません）。全レースの結果は「すべての結果」、成績の集計は成績ページをご覧ください。カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
