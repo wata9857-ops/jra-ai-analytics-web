@@ -526,12 +526,18 @@
       ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
   }
   // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）
+  const NX_MARK = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : k === "part" ? "△" : "✕"}</span>`;
   function nextMeeting(up, items) {
     const today = todayStr();
     const dd = (items || []).filter((x) => x.date >= today);
-    const days = [...new Set([...(up || []).map((r) => r.race_date), ...dd.map((x) => x.date)])].filter(Boolean).sort();
-    const day = days[0];
-    if (!day) return { day: null, html: empty("公開予定の予想・分析はまだありません。") };
+    const all = [...new Set([...(up || []).map((r) => r.race_date), ...dd.map((x) => x.date)])].filter(Boolean).sort();
+    if (!all.length) return { days: [], html: empty("公開予定の予想・分析はまだありません。") };
+    // 次の開催：最初の日と、3 日以内の次の日まで（土日・連休の 2 日分）
+    const days = all.slice(0, 2).filter((d, i) => i === 0 || (new Date(d) - new Date(all[0])) / 864e5 <= 3);
+    const legend = `<div class="nx-lg">${NX_MARK("ok")}公開中　${NX_MARK("part")}暫定・一部　${NX_MARK("ng")}まだ</div>`;
+    return { days, html: legend + days.map((d) => `<div class="nx-day"><h3 class="nx-dh">${fmtDate(d)}</h3>${meetingDay(d, up, dd)}</div>`).join("") };
+  }
+  function meetingDay(day, up, dd) {
     const rk = (d, c, n) => `${d}|${c}|${Number(n) || ""}`;
     const rows = new Map();
     (up || []).filter((r) => r.race_date === day).forEach((r) => rows.set(r.race_id, { r, key: rk(r.race_date, r.course, r.race_num) }));
@@ -545,7 +551,7 @@
       const ta = a.r?.post_time || "", tb = b.r?.post_time || "";
       return ta && tb ? ta.localeCompare(tb) : (Number(a.r?.race_num || a.meta?.race_num) || 99) - (Number(b.r?.race_num || b.meta?.race_num) || 99);
     });
-    const mark = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : k === "part" ? "△" : "✕"}</span>`;
+    const mark = NX_MARK;
     let nPred = 0, nDD = 0;
     const html = list.map((v) => {
       const r = v.r, m = r || v.meta;
@@ -571,9 +577,8 @@
         <div class="nx-ps">${pill(pk, "AI予想", pt, plink)}${pill(dk, "能力分析", dt_, dlink)}</div></div>`;
     }).join("");
     const head = `<div class="nx-sum"><span>${mark(nPred ? "ok" : "ng")} AI予想・買い方 <b>${nPred}</b>/${list.length} レース</span>
-      <span>${mark(nDD ? "ok" : "ng")} 能力ディープ分析 <b>${nDD}</b>/${list.length} レース</span>
-      <span class="nx-lg">${mark("ok")}公開中　${mark("part")}暫定・一部　${mark("ng")}まだ</span></div>`;
-    return { day, html: head + `<div class="nx-list">${html}</div>` };
+      <span>${mark(nDD ? "ok" : "ng")} 能力ディープ分析 <b>${nDD}</b>/${list.length} レース</span></div>`;
+    return head + `<div class="nx-list">${html}</div>`;
   }
 
   // ---------------- 会員について・管理人の紹介 ----------------
@@ -653,7 +658,7 @@
     setNav("home");
     const t = todayStr();
     const [up, done, perf, idx] = await Promise.all([
-      queryRaces({ from: t, status: "upcoming", order: "asc", limit: 60 }).catch(() => []),
+      queryRaces({ from: t, status: "upcoming", order: "asc", limit: 150 }).catch(() => []),
       queryRaces({ status: "finished", limit: 80 }).catch(() => []),
       getPerf().catch(() => null), getIndex()]);
     if (tok !== routeTok) return;
@@ -672,7 +677,7 @@
       ${prismEntry()}
       ${quickMenu()}
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
-      ${blk(nx.day ? `次の開催<small class="bt-sub">${fmtDate(nx.day)}</small>` : "これからのレース", nx.html,
+      ${blk(nx.days.length ? `次の開催<small class="bt-sub">${nx.days.map((d) => fmtDate(d)).join("・")}</small>` : "これからのレース", nx.html,
         { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
       ${blk(`注目の結果<small class="bt-sub">ピックアップ</small>`, `${homeDone.length ? `<div class="fchips" role="group" aria-label="注目の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${homeDone.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
         { acc: "result", tip: "最近公開したレースから、的中したレースを中心に選んで表示しています（すべてのレースではありません）。全レースの結果は「すべての結果」、成績の集計は成績ページをご覧ください。カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
