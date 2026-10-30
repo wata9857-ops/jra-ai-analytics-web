@@ -525,12 +525,55 @@
       ${blk("各馬の分析", `<div class="ddh">${H.map((h) => ddHorse(h, P, mx)).join("")}</div>`, { acc: "ai" })}
       ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
   }
-  // トップの「次の開催」：枠順確定後の能力分析
-  function ddHomeList(items, day) {
+  // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）
+  function nextMeeting(up, items) {
     const today = todayStr();
-    const post = (items || []).filter((x) => x.stage === "post" && x.date >= today);
-    if (!post.length) return "";
-    return `<div class="dd-home"><div class="dd-home-h"><b>能力のディープ分析</b><small>枠順確定後・実際の枠で計算</small></div><div class="must">${post.map((x) => ddCard(x, today)).join("")}</div></div>`;
+    const dd = (items || []).filter((x) => x.date >= today);
+    const days = [...new Set([...(up || []).map((r) => r.race_date), ...dd.map((x) => x.date)])].filter(Boolean).sort();
+    const day = days[0];
+    if (!day) return { day: null, html: empty("公開予定の予想・分析はまだありません。") };
+    const rk = (d, c, n) => `${d}|${c}|${Number(n) || ""}`;
+    const rows = new Map();
+    (up || []).filter((r) => r.race_date === day).forEach((r) => rows.set(r.race_id, { r, key: rk(r.race_date, r.course, r.race_num) }));
+    const byKey = new Map([...rows.values()].map((v) => [v.key, v]));
+    dd.filter((x) => x.date === day).forEach((x) => {
+      const hit = (x.race_id && rows.get(x.race_id)) || byKey.get(rk(x.date, x.course, x.race_num));
+      const row = hit || (() => { const v = { r: null, key: rk(x.date, x.course, x.race_num), meta: x }; rows.set("dd:" + x.key, v); byKey.set(v.key, v); return v; })();
+      row[x.stage === "post" ? "post" : "pre"] = x;
+    });
+    const list = [...rows.values()].sort((a, b) => {
+      const ta = a.r?.post_time || "", tb = b.r?.post_time || "";
+      return ta && tb ? ta.localeCompare(tb) : (Number(a.r?.race_num || a.meta?.race_num) || 99) - (Number(b.r?.race_num || b.meta?.race_num) || 99);
+    });
+    const mark = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : k === "part" ? "△" : "✕"}</span>`;
+    let nPred = 0, nDD = 0;
+    const html = list.map((v) => {
+      const r = v.r, m = r || v.meta;
+      const started = r?.post_time && new Date(r.post_time) <= new Date();
+      // AI 予想・買い方
+      let pk, pt, plink = "";
+      if (!r) { pk = "ng"; pt = "まだ予想していません"; }
+      else if (r.release_at && new Date(r.release_at) > new Date()) { pk = "part"; pt = `公開予定 ${relTime(r.release_at)}`; }
+      else if (r.pred_stage === "early") { pk = "part"; pt = "暫定（買い方は直前）"; plink = `#/race/${encodeURIComponent(r.race_id)}`; }
+      else { pk = "ok"; pt = started ? "発走済み" : "買い方まで公開中"; plink = `#/race/${encodeURIComponent(r.race_id)}`; }
+      if (pk !== "ng") nPred++;
+      // 能力のディープ分析
+      let dk, dt_, dlink = "";
+      if (v.post) { dk = "ok"; dt_ = "確定後の分析あり"; dlink = `#/analysis/${encodeURIComponent(v.post.key)}`; }
+      else if (v.pre) { dk = "part"; dt_ = "確定前の分析のみ"; dlink = `#/analysis/${encodeURIComponent(v.pre.key)}`; }
+      else { dk = "ng"; dt_ = "まだ分析していません"; }
+      if (dk !== "ng") nDD++;
+      const pill = (k, label, text, link) => (link ? `<a class="nx-p ${k}" href="${link}">` : `<span class="nx-p ${k} off">`)
+        + `${mark(k)}<span class="nx-t"><b>${label}</b><small>${esc(text)}</small></span>${link ? '<span class="nx-a">›</span></a>' : "</span>"}`;
+      const lock = r && pk === "ok" && !started && !isPremium() && !(r.member_preview) ? '<small class="nx-lock">ゴールド会員限定</small>' : "";
+      return `<div class="nx-row"><div class="rn"><b>${m.race_num ? esc(m.race_num) + "R" : ""}</b><small>${r ? fmtTime(r.post_time) : ""}</small></div>
+        <div class="t">${gradeBadge(m.grade)}<b>${esc(m.race_name || m.name || "")}</b><small class="rmeta">${esc(m.course || "")}・${esc(m.surface || "")}${esc(m.distance || "")}m${(r?.field || m.n) ? `・${esc(r?.field || m.n)}頭` : ""}</small>${lock}</div>
+        <div class="nx-ps">${pill(pk, "AI予想", pt, plink)}${pill(dk, "能力分析", dt_, dlink)}</div></div>`;
+    }).join("");
+    const head = `<div class="nx-sum"><span>${mark(nPred ? "ok" : "ng")} AI予想・買い方 <b>${nPred}</b>/${list.length} レース</span>
+      <span>${mark(nDD ? "ok" : "ng")} 能力ディープ分析 <b>${nDD}</b>/${list.length} レース</span>
+      <span class="nx-lg">${mark("ok")}公開中　${mark("part")}暫定・一部　${mark("ng")}まだ</span></div>`;
+    return { day, html: head + `<div class="nx-list">${html}</div>` };
   }
 
   // ---------------- 会員について・管理人の紹介 ----------------
@@ -616,12 +659,10 @@
     if (tok !== routeTok) return;
     homeIdx = idx; homeDone = pickHomeDone(done, idx || {});
     const p = perf?.payload || {};
-    const nextDay = up[0]?.race_date;
-    const upDay = up.filter((r) => r.race_date === nextDay);
     // v45: トップの一番上は「メニューのボタン」と「今週の必見レース」。買い方ごとの回収率は成績ページだけに表示
     const [featured, ddRow] = await Promise.all([getSiteRow("featured").catch(() => null), ddIndex().catch(() => null)]);
     if (tok !== routeTok) return;
-    const ddHome = ddHomeList(ddRow?.payload?.items, nextDay);
+    const nx = nextMeeting(up, ddRow?.payload?.items);
     const must = mustSee(featured, up, t);
     const courses = [...new Set(homeDone.map((r) => r.course).filter(Boolean))];
     const hasG = homeDone.some((r) => /G[123]/.test(r.grade || ""));
@@ -631,7 +672,7 @@
       ${prismEntry()}
       ${quickMenu()}
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
-      ${blk(nextDay ? `次の開催<small class="bt-sub">${fmtDate(nextDay)}</small>` : "これからのレース", (upDay.length ? `<div class="rlist">${upDay.map((r) => raceRow(r)).join("")}</div>` : (ddHome ? "" : empty("公開予定の予想はまだありません。"))) + ddHome,
+      ${blk(nx.day ? `次の開催<small class="bt-sub">${fmtDate(nx.day)}</small>` : "これからのレース", nx.html,
         { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
       ${blk(`注目の結果<small class="bt-sub">ピックアップ</small>`, `${homeDone.length ? `<div class="fchips" role="group" aria-label="注目の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${homeDone.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
         { acc: "result", tip: "最近公開したレースから、的中したレースを中心に選んで表示しています（すべてのレースではありません）。全レースの結果は「すべての結果」、成績の集計は成績ページをご覧ください。カードの右側は、そのレースで的中した買い方のうち回収率が最も高かったもの。AI予想1位の着順と、買い方の的中は別です。", top: `<a class="more-link" href="#/races?tab=finished">すべての結果 ›</a>` })}`;
