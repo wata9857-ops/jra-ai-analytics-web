@@ -526,7 +526,7 @@
       ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
   }
   // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）
-  const NX_MARK = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : k === "part" ? "△" : "✕"}</span>`;
+  const NX_MARK = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : "✕"}</span>`;
   function nextMeeting(up, items) {
     const today = todayStr();
     const dd = (items || []).filter((x) => x.date >= today);
@@ -534,7 +534,7 @@
     if (!all.length) return { days: [], html: empty("公開予定の予想・分析はまだありません。") };
     // 次の開催：最初の日と、3 日以内の次の日まで（土日・連休の 2 日分）
     const days = all.slice(0, 2).filter((d, i) => i === 0 || (new Date(d) - new Date(all[0])) / 864e5 <= 3);
-    const legend = `<div class="nx-lg">${NX_MARK("ok")}公開中　${NX_MARK("part")}暫定・一部　${NX_MARK("ng")}まだ</div>`;
+    const legend = `<div class="nx-lg">${NX_MARK("ok")}公開中　${NX_MARK("ng")}まだ</div>`;
     return { days, html: legend + days.map((d) => `<div class="nx-day"><h3 class="nx-dh">${fmtDate(d)}</h3>${meetingDay(d, up, dd)}</div>`).join("") };
   }
   function meetingDay(day, up, dd) {
@@ -559,14 +559,14 @@
       // AI 予想・買い方
       let pk, pt, plink = "";
       if (!r) { pk = "ng"; pt = "まだ予想していません"; }
-      else if (r.release_at && new Date(r.release_at) > new Date()) { pk = "part"; pt = `公開予定 ${relTime(r.release_at)}`; }
-      else if (r.pred_stage === "early") { pk = "part"; pt = "暫定（買い方は直前）"; plink = `#/race/${encodeURIComponent(r.race_id)}`; }
+      else if (r.release_at && new Date(r.release_at) > new Date()) { pk = "ng"; pt = `公開予定 ${relTime(r.release_at)}`; }
+      else if (r.pred_stage === "early") { pk = "ok"; pt = "暫定の予想（買い方は直前）"; plink = `#/race/${encodeURIComponent(r.race_id)}`; }
       else { pk = "ok"; pt = started ? "発走済み" : "買い方まで公開中"; plink = `#/race/${encodeURIComponent(r.race_id)}`; }
       if (pk !== "ng") nPred++;
       // 能力のディープ分析
       let dk, dt_, dlink = "";
-      if (v.post) { dk = "ok"; dt_ = "確定後の分析あり"; dlink = `#/analysis/${encodeURIComponent(v.post.key)}`; }
-      else if (v.pre) { dk = "part"; dt_ = "確定前の分析のみ"; dlink = `#/analysis/${encodeURIComponent(v.pre.key)}`; }
+      if (v.post) { dk = "ok"; dt_ = "枠順確定後の分析あり"; dlink = `#/analysis/${encodeURIComponent(v.post.key)}`; }
+      else if (v.pre) { dk = "ok"; dt_ = "枠順確定前の分析あり"; dlink = `#/analysis/${encodeURIComponent(v.pre.key)}`; }
       else { dk = "ng"; dt_ = "まだ分析していません"; }
       if (dk !== "ng") nDD++;
       const pill = (k, label, text, link) => (link ? `<a class="nx-p ${k}" href="${link}">` : `<span class="nx-p ${k} off">`)
