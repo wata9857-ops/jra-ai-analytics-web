@@ -355,6 +355,7 @@
     about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
     profile: '<path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/>',
     analysis: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 12.5v-2M10.5 12.5v-4M13 12.5v-3"/>',
+    diary: '<path d="M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6z"/><path d="M6 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2M9 8h6M9 12h6M9 16h3"/>',
   };
   // PRISM: 予想エンジンの紹介サイトへの入口（別サイト・新しいタブ）
   function prismEntry() {
@@ -364,7 +365,8 @@
       <span class="pe-arr" aria-hidden="true">›</span><span class="pe-spec" aria-hidden="true"></span></a>`;
   }
   function quickMenu() {
-    const items = [["stats", "#/stats", "成績", "PRISM の成績と検証"], ["upcoming", "#/races?tab=upcoming", "これからのレース", "予想を公開するレース"],
+    const items = [["stats", "#/stats", "成績", "PRISM の成績と検証"], ["diary", "#/diary", "管理人の馬券日記", "実際に買った馬券と結果"],
+      ["upcoming", "#/races?tab=upcoming", "これからのレース", "予想を公開するレース"],
       ["analysis", "#/analysis", "能力のディープ分析", "枠順確定前・確定後"],
       ["member", "#/member", "会員について", "無料会員・ゴールド会員"], ["about", "#/about", "サイトの説明", "予想の見方・使い方"],
       ["profile", "#/profile", "管理人の紹介", "このサイトを作った人"]];
@@ -628,9 +630,45 @@
     return `${sum}<div class="dia-list">${es.map((x, i) => diaryEntry(x, i >= SHOW)).join("")}</div>
       ${es.length > SHOW ? `<button type="button" class="btn ghost dia-btn">これより前の日記を見る（${es.length - SHOW} 件）</button>` : ""}`;
   }
+  function diaryEntries(row) {
+    return ((row && row.payload && row.payload.entries) || []).filter((x) => x && (x.race_name || x.course));
+  }
+  // v66: トップの「管理人の馬券日記」（最新 2 件と回収率。全件は #/diary）
+  function diaryHome(row) {
+    const es = diaryEntries(row);
+    if (!es.length) return "";
+    const done = es.filter((x) => x.status === "settled" && x.stake > 0);
+    const st = done.reduce((a, x) => a + x.stake, 0), py = done.reduce((a, x) => a + x.payout, 0);
+    const head = done.length ? `<p class="hdia-k">回収率 <b class="${py >= st ? "plus" : ""}">${Math.round(py / st * 100)}%</b><small>（結果が出た ${done.length} レース）</small></p>` : "";
+    // トップでは金額・1 レースごとの回収率は出さない（Web の方針：% 表示・負けを強調しない）。詳しくは日記のページで
+    const mini = (x) => {
+      const d = x.date ? new Date(x.date + "T00:00:00+09:00") : null;
+      const when = d ? `${d.getMonth() + 1}/${d.getDate()}（${"日月火水木金土"[d.getDay()]}）` : "";
+      const done = x.status === "settled", hit = done && x.payout > 0;
+      const st = done ? (hit ? ["hit", "的中"] : ["miss", "結果"]) : x.status === "started" ? ["wait", "結果待ち"] : ["pre", "レース前"];
+      const c = String(x.post_comment || x.pre_comment || "").replace(/\s+/g, " ").trim();
+      return `<a class="hdia-e" href="#/diary"><span class="dia-d">${esc(when)}</span><span class="dia-n">${x.grade ? gradeBadge(x.grade) : ""}<b>${esc(x.race_name || x.course || "")}</b></span>`
+        + `<span class="dia-st ${st[0]}">${st[1]}</span>${c ? `<span class="hdia-c">${esc(c.length > 60 ? c.slice(0, 60) + "…" : c)}</span>` : ""}</a>`;
+    };
+    return blk("管理人の馬券日記<small class=\"bt-sub\">実際に買った馬券と結果</small>",
+      `<div class="hdia">${head}<div class="hdia-list">${es.slice(0, 3).map(mini).join("")}</div></div>`,
+      { acc: "diary", top: `<a class="more-link" href="#/diary">日記をすべて見る ›</a>` });
+  }
+  async function viewDiary(tok) {
+    setNav("diary");
+    const drow = await getSiteRow("admin_diary").catch(() => null);
+    if (tok !== routeTok) return;
+    app.innerHTML = `<section class="diary-page"><div class="h-sec"><h2>管理人の馬券日記</h2></div>
+      <p class="lead2">管理人が実際に買った馬券と、その結果の記録です。レース前の考えと、レース後の振り返りも書いています。</p>
+      ${diaryHtml(drow)}
+      <p class="note">AI の予想・買い方とは別の、管理人個人の判断による馬券も含みます。レース前の馬券は、管理人が公開を選んだものだけを表示します。</p>
+      <div class="cta"><a class="btn ghost" href="#/profile">管理人の紹介を見る</a></div></section>`;
+    const more = app.querySelector(".dia-btn");
+    if (more) more.addEventListener("click", () => { app.querySelectorAll(".dia-more").forEach((e) => { e.hidden = false; }); more.remove(); });
+  }
   async function viewProfile(tok) {
     setNav("profile");
-    const [row, drow] = await Promise.all([getSiteRow("site_profile").catch(() => null), getSiteRow("admin_diary").catch(() => null)]);
+    const row = await getSiteRow("site_profile").catch(() => null);
     if (tok !== routeTok) return;
     const p = row?.payload || null;
     let prof;
@@ -647,11 +685,8 @@
       ${links.length ? `<div class="sheet prof-s"><h3>リンク</h3><ul class="prof-links">${links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(l.label)} ↗</a></li>`).join("")}</ul></div>` : ""}
       ${row.updated_at ? `<p class="prof-up">最終更新：${new Date(row.updated_at).toLocaleDateString("ja-JP")}</p>` : ""}`;
     }
-    app.innerHTML = `<div class="prof-grid"><section class="prof-main"><div class="h-sec"><h2>管理人の紹介</h2></div>${prof}</section>
-      <aside class="prof-diary" aria-label="管理人の馬券日記"><div class="h-sec"><h2>管理人の馬券日記</h2></div>${diaryHtml(drow)}
-      <p class="note">管理人が実際に買った馬券の記録です。AI の予想・買い方とは別の、個人の判断による馬券も含みます。</p></aside></div>`;
-    const more = app.querySelector(".dia-btn");
-    if (more) more.addEventListener("click", () => { app.querySelectorAll(".dia-more").forEach((e) => { e.hidden = false; }); more.remove(); });
+    app.innerHTML = `<section class="prof-main prof-solo"><div class="h-sec"><h2>管理人の紹介</h2></div>${prof}
+      <a class="sheet prof-dlink" href="#/diary"><b>管理人の馬券日記</b><span>実際に買った馬券と、その結果を公開しています ›</span></a></section>`;
   }
 
   async function viewHome(tok) {
@@ -665,7 +700,8 @@
     homeIdx = idx; homeDone = pickHomeDone(done, idx || {});
     const p = perf?.payload || {};
     // v45: トップの一番上は「メニューのボタン」と「今週の必見レース」。買い方ごとの回収率は成績ページだけに表示
-    const [featured, ddRow] = await Promise.all([getSiteRow("featured").catch(() => null), ddIndex().catch(() => null)]);
+    const [featured, ddRow, drow] = await Promise.all([getSiteRow("featured").catch(() => null), ddIndex().catch(() => null),
+      getSiteRow("admin_diary").catch(() => null)]);
     if (tok !== routeTok) return;
     const nx = nextMeeting(up, ddRow?.payload?.items);
     const must = mustSee(featured, up, t);
@@ -677,6 +713,7 @@
       ${prismEntry()}
       ${quickMenu()}
       ${blk(`今週の必見レース${must.label ? `<small class="bt-sub">${esc(must.label)}</small>` : ""}`, mustSeeList(must), { acc: "must" })}
+      ${diaryHome(drow)}
       ${blk(nx.days.length ? `次の開催<small class="bt-sub">${nx.days.map((d) => fmtDate(d)).join("・")}</small>` : "これからのレース", nx.html,
         { acc: "upcoming", top: `<a class="more-link" href="#/races?tab=upcoming">すべて ›</a>` })}
       ${blk(`注目の結果<small class="bt-sub">ピックアップ</small>`, `${homeDone.length ? `<div class="fchips" role="group" aria-label="注目の結果の絞り込み">${chips}</div>` : ""}<div id="home-done">${homeDone.length ? homeDoneList("all") : empty("まだありません。")}</div>`,
@@ -1136,6 +1173,7 @@
       else if (path === "#/about") viewAbout();
       else if (path === "#/member") viewMember();
       else if (path === "#/profile") await viewProfile(tok);
+      else if (path === "#/diary") await viewDiary(tok);
       else if (path === "#/analysis") await viewAnalysisList(tok);
       else if (path.startsWith("#/analysis/")) await viewAnalysis(tok, decodeURIComponent(path.slice(11)));
       else await viewHome(tok);

@@ -867,3 +867,16 @@ a.nx-p:hover{text-decoration:none;border-color:#B8AFA0;box-shadow:0 2px 8px rgba
 .nx-day + .nx-day{margin-top:18px}
 .nx-dh{font-size:1rem;margin:4px 0 6px;padding-left:8px;border-left:4px solid #1F3A5F}
 @media (max-width:760px){.nx-lg{text-align:left}}
+
+/* v66: 馬券日記の独立ページ・トップのカード */
+.hdia-k { margin: 0 0 8px; font-size: .95rem; } .hdia-k b { font-size: 1.35rem; margin: 0 4px; } .hdia-k small { color: var(--mut, #6b7785); }
+.hdia .dia-list { display: grid; gap: 10px; }
+.diary-page .lead2 { margin: 0 0 12px; color: var(--mut, #55616e); }
+.prof-solo { max-width: 760px; }
+.prof-dlink { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; border-left: 4px solid var(--shu, #b8283f); margin-top: 14px; }
+.prof-dlink b { font-size: 1.05rem; } .prof-dlink span { color: var(--mut, #55616e); font-size: .9rem; }
+.q-diary .qic { color: var(--shu, #b8283f); }
+.hdia-list { display: grid; gap: 8px; }
+.hdia-e { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line, #e3e1dc); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
+.hdia-e .hdia-c { grid-column: 1 / -1; color: var(--mut, #55616e); font-size: .85rem; }
+.hdia-e .dia-st.miss { background: #eef0f2; color: #66727e; }
