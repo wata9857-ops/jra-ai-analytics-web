@@ -309,7 +309,7 @@
     const win = s?.winner ? `<span class="rc-win">1着 <b>${esc(s.winner)}</b>${s.winner_pop ? `<small>（${s.winner_pop}番人気）</small>` : ""}</span>` : "";
     return `<a class="rcard ${best ? "is-hit" : ""}" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rc-date"><b>${dt.m}/${dt.d}</b><small>${dt.w}</small></div>
-      <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}</div>
+      <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}${s?.pickup ? '<span class="kchip k-ref" title="結果を見て選んだ好結果のレースのため、通算成績には含めていません">好結果ピックアップ</span>' : ""}</div>
         <div class="rc-meta">${esc(r.course || "")} ${r.race_num ? esc(r.race_num) + "R" : ""}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</div>
         <div class="rc-res">${win}${ai}</div></div>${bet}</a>`;
   }
@@ -1040,8 +1040,11 @@
     const p = det || pub;
     const sl = p.strategies_live || {}, sb2 = det ? (p.strategies_backtest || {}) : {};
     const n = p.n_pre ?? 0;
-    const tipPub = `公開した ${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・検証 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
-      + "検証レースは、そのレースの年より前のデータだけで学習したモデルで予想したもので、未来の情報は使っていません。外れも含めて全件を集計しています。新馬戦は成績に含めていません（予想と買い方は表示します）。";
+    const tipPub = `${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・直近 3 週間のレース後予想 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
+      + "直近 3 週間は、新馬戦以外のすべてのレースを、そのレースより前のデータだけで学習したモデルで予想しています（未来の情報は使っていません）。外れも含めて全件を集計しています。"
+      + (p.n_pickup_excluded ? `「好結果ピックアップ」の ${num(p.n_pickup_excluded)} レースは、結果を見て選んだため成績に含めていません。` : "")
+      + "新馬戦は成績に含めていません（予想と買い方は表示します）。";
+    const sp = p.strategies_pre || {};
     const liveRows = n > 0 ? SORDER.filter((k) => sl[k]) : [];
     let pubHtml = blk(`公開レースの通算成績（参考）<small class="bt-sub">${num(n)} レース</small>`, liveRows.length ? `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">的中率</th><th class="r">回収率</th><th class="hide-sm w-bar"></th></tr></thead><tbody>
       ${liveRows.map((k) => { const s = sl[k], roi = s.stake ? s.ret / s.stake : null; if (!s.stake) return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${STRAT[k].sub}</div></td><td colspan="4" class="muted">すべて見送り（期待値が基準に届かなかったため）</td></tr>`;
@@ -1049,8 +1052,10 @@
       </tbody></table></div>
       ${det ? `<details class="more"><summary>金額で見る（1 口 100 円の場合）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入</th><th class="r">払戻</th></tr></thead><tbody>
       ${liveRows.filter((k) => sl[k].stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${yen(sl[k].stake)}</td><td class="r">${yen(sl[k].ret)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+      ${SORDER.some((k) => sp[k]?.stake) ? `<details class="more"><summary>発走前に予想したレースだけ（${num(p.n_live ?? 0)} レース）</summary><div><table class="t compact"><thead><tr><th>買い方</th><th class="r">購入レース</th><th class="r">回収率</th></tr></thead><tbody>
+      ${SORDER.filter((k) => sp[k]?.stake).map((k) => `<tr><td>${STRAT[k].name}</td><td class="r">${num(sp[k].n)}</td><td class="r">${roiTag(sp[k].ret / sp[k].stake, 1)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
       ${det && Object.keys(idx).length ? `<div class="sheet" style="margin-top:12px"><h3 class="h3s">回収率の推移（通算）</h3><div class="chart"><canvas id="cum4"></canvas></div></div>` : ""}`
-      : empty("公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。"), { acc: "info", tip: tipPub + " レース数が少ないため、数字は大きく動きます。", closed: true, cls: "minor", id: "pub-perf" });
+      : empty("公開したレースの結果が出ると、ここに買い方ごとの通算成績を表示します。"), { acc: "info", tip: tipPub, closed: true, cls: "minor", id: "pub-perf" });
     let html = "", afterHtml = "";
     const sa = p.strategies_after || {};
     if (SORDER.some((k) => sa[k]?.stake)) {
@@ -1084,7 +1089,7 @@
       成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。過去の検証は、その年より前のデータだけで作ったモデルと買い方で計算しています。</p>`, { acc: "info", closed: true });
     app.innerHTML = html;
     const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#2E7D32", high: "#B8202B" };
-    const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified").sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+    const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified" && !x.pickup && !x.shinba).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
     const drawCum = () => {
       const accm = {}, ser = {};
       rows.forEach((x) => SORDER.forEach((k) => {
@@ -1092,7 +1097,7 @@
         a.s += x.stakes?.[k] || 0; a.r += x.rets?.[k] || 0;
         (ser[k] || (ser[k] = [])).push(a.s ? Math.round((a.r / a.s) * 1000) / 10 : null);
       }));
-      makeChart("cum4", { type: "line", data: { labels: rows.map((x, i) => `${i + 1}`), datasets: SORDER.filter((k) => ser[k].some((v) => v != null)).map((k) => ({ label: STRAT[k].name, data: ser[k], borderColor: colors[k], borderWidth: 2, pointRadius: 2, tension: 0, spanGaps: true })) },
+      makeChart("cum4", { type: "line", data: { labels: rows.map((x, i) => `${i + 1}`), datasets: SORDER.filter((k) => ser[k].some((v) => v != null)).map((k) => ({ label: STRAT[k].name, data: ser[k], borderColor: colors[k], borderWidth: 2, pointRadius: rows.length > 300 ? 0 : 2, tension: 0, spanGaps: true })) },
         options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: "bottom" } },
           scales: { x: { title: { display: true, text: "レース（古い順）" } }, y: { suggestedMin: 0, suggestedMax: 150, ticks: { callback: (v) => v + "%" } } } } });
     };
