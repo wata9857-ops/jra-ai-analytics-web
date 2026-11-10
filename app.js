@@ -45,10 +45,10 @@
   const gate = (h, n) => `<span class="gate w${h.waku || wakuOf(h.umaban, n) || 1}">${esc(h.umaban)}</span>`;
   const mkCls = (m) => (m?.startsWith("◎") ? "m1" : m?.startsWith("○") ? "m2" : m ? "m3" : "");
   const STRAT = {
-    ai: { name: "AI推奨", sub: "見送りあり", risk: "中" },
-    stable: { name: "安定型", sub: "的中重視", risk: "低" },
-    balance: { name: "バランス型", sub: "的中と配当の両立", risk: "中" },
-    high: { name: "高配当型", sub: "大きな配当を狙う", risk: "高" },
+    ai: { name: "AI推奨", sub: "厳選・1日約1レース", risk: "中" },
+    stable: { name: "安定型", sub: "的中重視・ほぼ毎レース", risk: "低" },
+    balance: { name: "バランス型", sub: "1日約3レース", risk: "中" },
+    high: { name: "高配当型", sub: "馬連1点・好機だけ", risk: "高" },
   };
   const SORDER = ["ai", "stable", "balance", "high"];
   const COURSES = ["札幌", "函館", "福島", "新潟", "東京", "中山", "中京", "京都", "阪神", "小倉"];
@@ -1077,14 +1077,14 @@
     }
     if (!det) {
       const bt = pub.strategies_backtest || {};
-      html += blk("PRISM の検証成績", `<div class="scards">${SORDER.filter((k) => bt[k]).map((k) => { const v = bt[k].test_roi ?? bt[k].full_roi; return `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(v)}</span>${roiBar(v)}<span class="ss">2021〜2026 年の回収率（検証期間・新馬戦を除く）</span></div>`; }).join("")}</div>
-        <p class="note">各年はその年より前のデータだけで学習したモデルで計算した、過去の検証です。将来の利益を保証するものではありません。</p>
+      html += blk("PRISM の検証成績", `<div class="scards">${SORDER.filter((k) => bt[k]).map((k) => { const v = bt[k].test_roi ?? bt[k].full_roi; return `<div class="scard"><span class="sn">${STRAT[k].name}<small>${STRAT[k].sub}</small></span><span class="sv">${roiTag(v)}</span>${roiBar(v)}<span class="ss">${k === "stable" ? "2023〜2026 年" : "2025〜2026 年"}の回収率（発走 5 分前の情報で判定・新馬戦を除く）</span></div>`; }).join("")}</div>
+        <p class="note">実際に馬券を買える発走 5 分前のオッズと、直前のオッズの動きだけで買い目を決めた場合の過去の検証です（払戻は実際の配当）。購入レースが少ない買い方は年によるぶれが大きく、将来の利益を保証するものではありません。</p>
         ${memberLock("詳しい検証結果は会員限定です", "年ごとの回収率、選択期間と検証期間の比較、信頼区間、予想の精度（人気順との比較）などを見られます。")}`, { acc: "stat" });
     }
     if (Object.keys(sb2).length) {
-      html += blk("PRISM の検証<small class=\"bt-sub\">新馬戦を除く</small>", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2016〜20<br><small>選択</small></th><th class="r">2021〜26<br><small>検証</small></th><th class="r">2016〜26<br><small>通算</small></th><th class="r hide-sm">90%区間</th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
+      html += blk("PRISM の検証<small class=\"bt-sub\">新馬戦を除く</small>", `<div class="tbl-wrap"><table class="t stab"><thead><tr><th>買い方</th><th class="r">購入率</th><th class="r">的中率</th><th class="r">2024<br><small>選択</small></th><th class="r">2025〜26<br><small>検証</small></th><th class="r">100%超<br><small>の確率</small></th><th class="r hide-sm">90%区間</th><th class="r hide-sm">高額配当<br><small>を除く</small></th></tr></thead><tbody>
         ${SORDER.filter((k) => sb2[k]).map((k) => { const s = sb2[k]; return `<tr><td><b>${STRAT[k].name}</b><div class="muted">${esc(s.rule || "")}</div></td><td class="r">${pct(s.coverage, 0)}</td><td class="r">${pct(s.hit_rate, 0)}</td>
-          <td class="r">${roiTag(s.dev_roi, 1)}</td><td class="r"><b>${roiTag(s.test_roi, 1)}</b></td><td class="r">${roiTag(s.full_roi, 1)}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
+          <td class="r">${roiTag(s.dev_roi, 1)}</td><td class="r"><b>${roiTag(s.test_roi, 1)}</b></td><td class="r">${s.p_over_100 != null ? pct(s.p_over_100, 0) : "—"}</td><td class="r hide-sm">${s.ci90 ? pct(s.ci90[0], 0) + "〜" + pct(s.ci90[1], 0) : "—"}</td><td class="r hide-sm">${pct(s.trimmed)}</td></tr>`; }).join("")}
         </tbody></table></div><div class="sheet" style="margin-top:12px"><h3 class="h3s">年ごとの回収率</h3><div class="chart"><canvas id="yr4"></canvas></div></div>`,
         { acc: "stat", badge: "会員", tip: (p.strategies_backtest_period || "") + "。" + (p.strategies_backtest_note || "") });
     }
@@ -1097,7 +1097,9 @@
         </tbody></table></div>`, { acc: "ai", badge: "会員", tip: (acc.period || "") + "。" + TIP_AI });
     }
     html += blk("この成績の読み方", `<p>回収率 100% が収支トントンです。JRA の払戻率は券種により 70〜80% で、全馬券を買い続けると長期では 70〜80% 程度に収束します。
-      成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。過去の検証は、その年より前のデータだけで作ったモデルと買い方で計算しています。</p>`, { acc: "info", closed: true });
+      成績は良く見せるための選別をせず、見送りや外れも含めて掲載しています。
+      2026 年 11 月から、AI推奨・バランス型・高配当型は<b>発走 5 分前のオッズと直前のオッズの動き</b>で買い目を決めています（以前の検証は締め切り後の確定オッズで計算していたため、実際に買える条件より良い数字でした）。
+      AI推奨と高配当型は買うレースが少なく、数か月単位で見てください。</p>`, { acc: "info", closed: true });
     app.innerHTML = html;
     const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#2E7D32", high: "#B8202B" };
     const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified" && !x.pickup && !x.shinba).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
