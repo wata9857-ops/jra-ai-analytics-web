@@ -300,14 +300,25 @@
   function resultCard(r, s) {
     const dt = md2(r.race_date);
     const best = s?.best;
-    let bet;
-    if (best) bet = `<div class="rc-bet hit"><span class="rc-k">的中した買い方で最高</span><b>${STRAT[best.k]?.name || best.k}</b><span class="rc-roi">${roiTag(best.roi)}</span></div>`;
+    let bet, cls = best ? "is-hit" : "";
+    if (s && s.bal_stake !== undefined) {
+      // v81: バランス型（1 日約 3 レース）が買ったレースは目立たせて的中・不的中。見送ったレースは安定型が当たっていればその回収率、外れなら「見送り」
+      if (s.bal_stake > 0) {
+        const hit = s.bal_ret > 0;
+        cls = "is-bal" + (hit ? " is-hit" : "");
+        bet = `<div class="rc-bet ${hit ? "hit" : ""}"><span class="rc-k">バランス型で購入</span><b>${hit ? "的中" : "不的中"}</b>${hit ? `<span class="rc-roi">${roiTag(s.bal_ret / s.bal_stake)}</span>` : ""}</div>`;
+      } else if (s.stb_stake > 0 && s.stb_ret > 0) {
+        bet = `<div class="rc-bet"><span class="rc-k">見送り（安定型は的中）</span><b>安定型</b><span class="rc-roi">${roiTag(s.stb_ret / s.stb_stake)}</span></div>`;
+      } else {
+        bet = `<div class="rc-bet"><span class="rc-k">買い方の結果</span><b>見送り</b></div>`;
+      }
+    } else if (best) bet = `<div class="rc-bet hit"><span class="rc-k">的中した買い方で最高</span><b>${STRAT[best.k]?.name || best.k}</b><span class="rc-roi">${roiTag(best.roi)}</span></div>`;
     else if (s?.n_bet) bet = `<div class="rc-bet"><span class="rc-k">買い方の結果</span><b>不的中</b><span class="rc-sub">${s.n_bet} つの買い方で購入</span></div>`;
     else if (s) bet = `<div class="rc-bet"><span class="rc-k">買い方の結果</span><b>見送り</b></div>`;
     else bet = `<div class="rc-bet"><span class="rc-k">結果</span><b>確定</b></div>`;
     const ai = s?.ai1_pos ? `<span class="rc-ai ${s.ai1_pos <= 3 ? "on" : ""}">◎ AI予想1位 <b>${s.ai1_pos}着</b></span>` : "";
     const win = s?.winner ? `<span class="rc-win">1着 <b>${esc(s.winner)}</b>${s.winner_pop ? `<small>（${s.winner_pop}番人気）</small>` : ""}</span>` : "";
-    return `<a class="rcard ${best ? "is-hit" : ""}" href="#/race/${encodeURIComponent(r.race_id)}">
+    return `<a class="rcard ${cls}" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rc-date"><b>${dt.m}/${dt.d}</b><small>${dt.w}</small></div>
       <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}${s?.pickup ? '<span class="kchip k-ref" title="結果を見て選んだ好結果のレースのため、通算成績には含めていません">好結果ピックアップ</span>' : ""}</div>
         <div class="rc-meta">${esc(r.course || "")} ${r.race_num ? esc(r.race_num) + "R" : ""}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</div>
@@ -1040,8 +1051,8 @@
     const p = det || pub;
     const sl = p.strategies_live || {}, sb2 = det ? (p.strategies_backtest || {}) : {};
     const n = p.n_pre ?? 0;
-    const tipPub = `${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・直近 3 週間のレース後予想 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
-      + "直近 3 週間は、新馬戦以外のすべてのレースを、そのレースより前のデータだけで学習したモデルで予想しています（未来の情報は使っていません）。外れも含めて全件を集計しています。"
+    const tipPub = `${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・直近 2 週間のレース後予想 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
+      + "直近 2 週間は、新馬戦以外のすべてのレースを、そのレースより前のデータだけで学習したモデルで予想しています（未来の情報は使っていません）。外れも含めて全件を集計しています。"
       + (p.n_pickup_excluded ? `「好結果ピックアップ」の ${num(p.n_pickup_excluded)} レースは、結果を見て選んだため成績に含めていません。` : "")
       + "新馬戦は成績に含めていません（予想と買い方は表示します）。";
     const sp = p.strategies_pre || {};
