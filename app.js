@@ -523,19 +523,34 @@
     const C = P.charts || {};
     const rp = Object.fromEntries((P.race_plain || []).map(([h, l]) => [h, l]));
     const para = (k) => (rp[k] || []).map((x) => `<p>${esc(x)}</p>`).join("");
+    // v84: AI 独自の分析と過去の成績（PDF と同じ内容。PC が作った HTML）
+    const MORE = P.more_html || [];
+    const UNIQ = ["AI INSIGHTS", "MARKET vs AI", "8 VIEWS", "SCENARIOS", "PRISM RECORD", "WIN vs PLACE"];
+    const mtitle = (t) => String(t || "").replace(/<span class='bar'>｜<\/span>/g, "｜");
+    const mblk = (list, open) => {
+      const groups = [];
+      list.forEach((m) => { const g = groups.find((x) => x.e === m.eyebrow); if (g) g.h += m.html; else groups.push({ e: m.eyebrow, t: m.title, h: m.html }); });
+      return groups.map((g) => blk(mtitle(g.t), `<div class="ddm">${g.h}</div>`, { acc: g.e === "AI INSIGHTS" ? "ai" : "info", closed: !open })).join("");
+    };
+    const mIns = mblk(MORE.filter((m) => m.eyebrow === "AI INSIGHTS"), true);
+    const mUniq = mblk(MORE.filter((m) => UNIQ.includes(m.eyebrow) && m.eyebrow !== "AI INSIGHTS"), false);
+    const mFact = mblk(MORE.filter((m) => !UNIQ.includes(m.eyebrow)), false);
     app.innerHTML = `${backBar("能力のディープ分析", true)}${head(P)}
       <p class="dd-note">オッズを使わない能力の分析です（${esc(new Date(P.made_at).toLocaleString("ja-JP", opts))} 時点）。${esc(P.disclaimer || "")}</p>
       ${figs([{ l: "PRISM の見立て", v: esc(P.shape), key: true }, { l: "上位 3 頭の勝率の合計", v: pct(P.top3, 0) },
         { l: "勝つ可能性が十分ある馬", v: `約${Math.round(P.eff)}<small>頭</small>` }, { l: "想定のペース", v: esc(P.pace_word || "") }], "f4")}
       ${blk("まず、今回の結論", `<div class="prose-dd">${para("レースの全体像")}</div><div class="dd-picks">${(P.picks || []).map((k) => `<div class="dd-pk">
         <small>${esc(k.label)}</small><b>${esc(k.horse)} ${gchip(k.grade)}</b><span class="muted">${esc(k.why)}</span><p>${esc(k.summary)}</p></div>`).join("")}</div>`, { acc: "ai" })}
+      ${mIns}
       ${blk(`実力順位・全${H.length}頭`, ddBars(H), { acc: "ai", tip: "PRISM が計算した勝率（オッズ不使用）。右の S〜D は総合評価。" })}
       ${blk("要素別マトリクス", `<p class="dd-lead">横に S・A が多い馬ほど、どの面から見ても強い馬です。縦に見ると、その要素で一番の馬が分かります。</p>${ddMatrix(P)}`, { acc: "ai" })}
       ${blk("時計と展開", `<div class="prose-dd">${para("勝つために必要な時計")}</div>${C.speed || ""}<h3 class="dd-h3">予想される隊列</h3>
         <div class="prose-dd">${para("展開の見通し")}</div>${C.formation || ""}<p class="muted dd-cap">赤 = 実力 1〜3 位、青 = 4〜6 位、灰 = 7 位以下（数字は実力順位）。左ほど前に行く馬です。</p>`, { acc: "info" })}
       ${blk("ペース別の有力馬", `<div class="prose-dd">${para("ペース別の見どころ")}</div>${ddScen(P)}`, { acc: "info" })}
       ${blk(P.stage === "post" ? "実際の枠の有利・不利" : "枠の影響", `<div class="prose-dd">${para("枠の影響")}</div>${C.gate || ""}`, { acc: "info" })}
+      ${mUniq}
       ${blk("各馬の分析", `<div class="ddh">${H.map((h) => ddHorse(h, P, mx)).join("")}</div>`, { acc: "ai" })}
+      ${mFact}
       ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
   }
   // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）

@@ -1,3 +1,27 @@
+/* v84: ディープ分析の追加ページ（PC が作る HTML） */
+.ddm{font-size:.9rem;line-height:1.7}
+.ddm .focus.ccl{background:#faf6f0;border-left:4px solid #b8893f;padding:10px 14px;border-radius:6px;margin:0 0 12px}
+.ddm .focus.ccl h3{font-size:.85rem;margin:0 0 4px;color:#8a6420}
+.ddm .pts{margin:0;padding-left:1.2em}
+.ddm .fn{font-size:.78rem;color:#637181}
+.ddm .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ddm h2.h2,.ddm h3.hs,.ddm h4.hs{font-size:.92rem;margin:14px 0 6px}
+.ddm table.dt{width:100%;border-collapse:collapse;font-size:.78rem;margin:6px 0 10px;display:block;overflow-x:auto}
+.ddm table.dt th{background:#f4f4f0;font-weight:700;padding:5px 6px;border-bottom:1px solid #ddd;white-space:nowrap}
+.ddm table.dt td{padding:4px 6px;border-bottom:1px solid #eee;white-space:nowrap}
+.ddm table.dt td.r,.ddm table.dt th.r{text-align:right}.ddm table.dt td.c,.ddm table.dt th.c{text-align:center}
+.ddm .hx{display:inline-block;min-width:44px;padding:1px 4px;border-radius:3px}
+.ddm .insg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ddm .ins{border:1px solid #ddd;border-left:4px solid #af283e;border-radius:6px;padding:8px 12px;background:#fff}
+.ddm .ins-k{font-size:.72rem;color:#af283e;font-weight:700}
+.ddm .ins h3{font-size:.9rem;margin:2px 0 4px}
+.ddm .ins p{margin:0;font-size:.82rem}
+.ddm .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.ddm .kpi{background:#f4f4f0;border-radius:6px;padding:8px;text-align:center}.ddm .kpi .kv{font-size:1.1rem;font-weight:700}.ddm .kpi .kl{font-size:.72rem;color:#637181}
+.ddm .spg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ddm .spc{border:1px solid #ddd;border-radius:6px;padding:6px 8px}
+.ddm .spc-h{display:flex;justify-content:space-between;font-size:.78rem}
+@media (max-width:640px){.ddm .two,.ddm .insg{grid-template-columns:1fr}.ddm .spg{grid-template-columns:1fr 1fr}.ddm .kpis{grid-template-columns:1fr 1fr}}
 /* JRA AI 競馬アナリティクス — v33 デザイン
    方針: 競馬新聞の「馬柱」とスポーツ紙の成績欄をもとにした、紙面のような落ち着いた表現。
    ・色は「紙（生成り）」「墨」「朱（印・強調）」「藍（AI・リンク）」の 4 色が基本。グラデーションや装飾の影は使わない。
