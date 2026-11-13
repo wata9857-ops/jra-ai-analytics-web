@@ -168,6 +168,16 @@
     const { data } = await sb.from("prediction_teasers").select("teaser,generated_at").eq("race_id", id).maybeSingle();
     return data;
   });
+  // v86: 発走 5 分前の判定でバランス型が買うレース（teaser.bal_buy。誰でも見られる。買い目は会員だけ）→ 一覧で金色にする
+  async function getBalBuys(ids) {
+    ids = [...new Set((ids || []).filter(Boolean))];
+    if (DEMO || !ids.length) return new Set();
+    return cached("bal:" + ids.sort().join(","), 30e3, async () => {
+      const { data } = await sb.from("prediction_teasers").select("race_id,teaser").in("race_id", ids);
+      return new Set((data || []).filter((x) => x.teaser && x.teaser.bal_buy).map((x) => x.race_id));
+    }).catch(() => new Set());
+  }
+  const BAL_TAG = '<span class="st st-bal">★ バランス型で購入</span>';
   const getReview = (id) => cached("review:" + id, 60e3, async () => {
     if (DEMO) return id === "DEMO3" ? { payload: Demo.review } : null;
     const { data } = await sb.from("reviews").select("payload,published_at").eq("race_id", id).maybeSingle();
@@ -284,17 +294,18 @@
     const hm = `${String(j.getUTCHours()).padStart(2, "0")}:${String(j.getUTCMinutes()).padStart(2, "0")}`;
     return long ? `${j.getUTCMonth() + 1}月${j.getUTCDate()}日(${wd}) ${hm}` : `${j.getUTCMonth() + 1}/${j.getUTCDate()}(${wd}) ${hm}`;
   }
-  function raceRow(r) {
+  function raceRow(r, bal) {
     const started = r.post_time && new Date(r.post_time) <= new Date();
     const rel = r.release_at && new Date(r.release_at) > new Date();
     const right = started ? `<span class="st">発走済み</span>`
       : rel ? `<span class="st st-sched">公開予定 ${relTime(r.release_at)}</span>`
       : r.member_preview && !isPremium() ? `<span class="st st-mp">無料会員に特別公開</span>`
       : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">ゴールド会員限定</span>`;
-    return `<a class="rrow" href="#/race/${encodeURIComponent(r.race_id)}">
+    const b = bal && bal.has(r.race_id);
+    return `<a class="rrow ${b ? "is-bal" : ""}" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rn"><b>${r.race_num ? esc(r.race_num) + "R" : ""}</b><small>${fmtTime(r.post_time)}</small></div>
       <div class="t">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b><small class="rmeta">${esc(r.course || "")}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</small></div>
-      <div class="res">${right}</div></a>`;
+      <div class="res">${b ? BAL_TAG : ""}${right}</div></a>`;
   }
   // 結果の出たレース（カード）：日付・格・1 着・AI の印の着順・買い方の結果がひと目で分かる
   function resultCard(r, s) {
@@ -324,7 +335,7 @@
         <div class="rc-meta">${esc(r.course || "")} ${r.race_num ? esc(r.race_num) + "R" : ""}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</div>
         <div class="rc-res">${win}${ai}</div></div>${bet}</a>`;
   }
-  function groupedList(races, idx) {
+  function groupedList(races, idx, bal) {
     if (!races.length) return empty("条件に合うレースがありません。");
     const byDay = new Map();
     races.forEach((r) => { if (!byDay.has(r.race_date)) byDay.set(r.race_date, []); byDay.get(r.race_date).push(r); });
@@ -333,7 +344,7 @@
       rs.sort((a, b) => (a.course || "").localeCompare(b.course || "") || (a.race_num || 0) - (b.race_num || 0));
       const fin = rs.filter((r) => r.status === "finished"), up = rs.filter((r) => r.status !== "finished");
       h += `<h3 class="day"><span>${fmtDate(d, true)}</span><small>${rs.length} レース</small></h3>`;
-      if (up.length) h += `<div class="rlist">${up.map((r) => raceRow(r)).join("")}</div>`;
+      if (up.length) h += `<div class="rlist">${up.map((r) => raceRow(r, bal)).join("")}</div>`;
       if (fin.length) h += `<div class="rcards">${fin.map((r) => resultCard(r, idx?.[r.race_id])).join("")}</div>`;
     }
     return h;
@@ -555,7 +566,7 @@
   }
   // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）
   const NX_MARK = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : "✕"}</span>`;
-  function nextMeeting(up, items) {
+  function nextMeeting(up, items, bal) {
     const today = todayStr();
     const dd = (items || []).filter((x) => x.date >= today);
     const all = [...new Set([...(up || []).map((r) => r.race_date), ...dd.map((x) => x.date)])].filter(Boolean).sort();
@@ -563,9 +574,9 @@
     // 次の開催：最初の日と、3 日以内の次の日まで（土日・連休の 2 日分）
     const days = all.slice(0, 2).filter((d, i) => i === 0 || (new Date(d) - new Date(all[0])) / 864e5 <= 3);
     const legend = `<div class="nx-lg">${NX_MARK("ok")}公開中　${NX_MARK("ng")}まだ</div>`;
-    return { days, html: legend + days.map((d) => `<div class="nx-day"><h3 class="nx-dh">${fmtDate(d)}</h3>${meetingDay(d, up, dd)}</div>`).join("") };
+    return { days, html: legend + days.map((d) => `<div class="nx-day"><h3 class="nx-dh">${fmtDate(d)}</h3>${meetingDay(d, up, dd, bal)}</div>`).join("") };
   }
-  function meetingDay(day, up, dd) {
+  function meetingDay(day, up, dd, bal) {
     const rk = (d, c, n) => `${d}|${c}|${Number(n) || ""}`;
     const rows = new Map();
     (up || []).filter((r) => r.race_date === day).forEach((r) => rows.set(r.race_id, { r, key: rk(r.race_date, r.course, r.race_num) }));
@@ -600,8 +611,9 @@
       const pill = (k, label, text, link) => (link ? `<a class="nx-p ${k}" href="${link}">` : `<span class="nx-p ${k} off">`)
         + `${mark(k)}<span class="nx-t"><b>${label}</b><small>${esc(text)}</small></span>${link ? '<span class="nx-a">›</span></a>' : "</span>"}`;
       const lock = r && pk === "ok" && !started && !isPremium() && !(r.member_preview) ? '<small class="nx-lock">ゴールド会員限定</small>' : "";
-      return `<div class="nx-row"><div class="rn"><b>${m.race_num ? esc(m.race_num) + "R" : ""}</b><small>${r ? fmtTime(r.post_time) : ""}</small></div>
-        <div class="t">${gradeBadge(m.grade)}<b>${esc(m.race_name || m.name || "")}</b><small class="rmeta">${esc(m.course || "")}・${esc(m.surface || "")}${esc(m.distance || "")}m${(r?.field || m.n) ? `・${esc(r?.field || m.n)}頭` : ""}</small>${lock}</div>
+      const b = r && bal && bal.has(r.race_id);
+      return `<div class="nx-row ${b ? "is-bal" : ""}"><div class="rn"><b>${m.race_num ? esc(m.race_num) + "R" : ""}</b><small>${r ? fmtTime(r.post_time) : ""}</small></div>
+        <div class="t">${b ? BAL_TAG : ""}${gradeBadge(m.grade)}<b>${esc(m.race_name || m.name || "")}</b><small class="rmeta">${esc(m.course || "")}・${esc(m.surface || "")}${esc(m.distance || "")}m${(r?.field || m.n) ? `・${esc(r?.field || m.n)}頭` : ""}</small>${lock}</div>
         <div class="nx-ps">${pill(pk, "AI予想", pt, plink)}${pill(dk, "能力分析", dt_, dlink)}</div></div>`;
     }).join("");
     const head = `<div class="nx-sum"><span>${mark(nPred ? "ok" : "ng")} AI予想・買い方 <b>${nPred}</b>/${list.length} レース</span>
@@ -729,7 +741,9 @@
     const [featured, ddRow, drow] = await Promise.all([getSiteRow("featured").catch(() => null), ddIndex().catch(() => null),
       getSiteRow("admin_diary").catch(() => null)]);
     if (tok !== routeTok) return;
-    const nx = nextMeeting(up, ddRow?.payload?.items);
+    const bal = await getBalBuys((up || []).map((r) => r.race_id));
+    if (tok !== routeTok) return;
+    const nx = nextMeeting(up, ddRow?.payload?.items, bal);
     const must = mustSee(featured, up, t);
     const courses = [...new Set(homeDone.map((r) => r.course).filter(Boolean))];
     const hasG = homeDone.some((r) => /G[123]/.test(r.grade || ""));
@@ -783,6 +797,8 @@
     if (tab === "upcoming" && !f.date) qf.from = todayStr();
     const [races, dates, idx] = await Promise.all([queryRaces(qf), raceDates(month + "-01", monthEnd(month)).catch(() => []), getIndex()]);
     if (tok !== routeTok) return;
+    const bal = await getBalBuys(races.filter((r) => r.status !== "finished").map((r) => r.race_id));
+    if (tok !== routeTok) return;
     const tabs = [["all", "すべて"], ["upcoming", "これから"], ["finished", "結果"]]
       .map(([k, l]) => `<button type="button" class="tab ${tab === k ? "on" : ""}" data-act="tab" data-v="${k}" aria-pressed="${tab === k}">${l}</button>`).join("");
     const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`;
@@ -809,7 +825,7 @@
       </div>
       <details class="more cal-wrap" ${f.month ? "open" : ""}><summary>カレンダーから選ぶ</summary><div>${calendar(month, dates, f.date)}</div></details>
       <div class="count">${races.length >= qf.limit ? `${num(races.length)}件以上` : `${num(races.length)}件`}</div>
-      ${groupedList(races, idx)}
+      ${groupedList(races, idx, bal)}
       ${races.length >= qf.limit ? `<div class="cta center"><button type="button" class="btn ghost" data-act="more">さらに表示</button></div>` : ""}`;
   }
 
@@ -999,6 +1015,11 @@
       <div class="meta">${fmtDate(r.race_date, true)}　${esc(r.course)} ${r.race_num ? esc(r.race_num) + "R" : ""}　${fmtTime(r.post_time)}発走</div>
       <h1>${gradeBadge(r.grade)}${esc(r.race_name)}</h1><div class="chips">${surfChip(r.surface)} <span class="chip">${esc(r.distance)}m</span> <span class="chip">${esc(r.field)}頭</span>
       ${P?.character?.kind ? `<span class="chip">${esc(P.character.kind)}</span>` : ""}${kindChip(kind, P?.kind_note)}</div></div>`;
+    if (!V) {
+      const tz = P ? P.teaser : (await getTeaser(id))?.teaser;
+      if (tok !== routeTok) return;
+      if (tz && tz.bal_buy) html += `<div class="bal-banner"><b>★ バランス型で購入するレースです</b><small>発走 5 分前のオッズで判定しました。${isPremium() || r.member_preview ? "買い目は下の「買い方と選んだ理由」のバランス型にあります。" : "買い目はゴールド会員限定です。"}</small></div>`;
+    }
     if (V && V.result) {
       const R = M?.review;
       html += divider("post", "レース結果と振り返り", "発走後に分かった結果と、その分析");

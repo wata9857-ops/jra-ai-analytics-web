@@ -907,3 +907,11 @@ a.nx-p:hover{text-decoration:none;border-color:#B8AFA0;box-shadow:0 2px 8px rgba
 .hdia-e { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line, #e3e1dc); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
 .hdia-e .hdia-c { grid-column: 1 / -1; color: var(--mut, #55616e); font-size: .85rem; }
 .hdia-e .dia-st.miss { background: #eef0f2; color: #66727e; }
+
+/* v86: 発走 5 分前の判定でバランス型が買うレース（結果カードの .rcard.is-bal と同じ金色） */
+.rrow.is-bal,.nx-row.is-bal{background:#fff8ec;box-shadow:inset 4px 0 0 #c9a24a}
+.st.st-bal{display:inline-block;background:#c9a24a;color:#fff;font-weight:700;border-radius:999px;padding:2px 8px;margin-right:6px}
+.nx-row.is-bal .st-bal{display:table;margin-bottom:4px}
+.bal-banner{margin:10px 0;padding:12px 14px;background:#fff8ec;border:1.5px solid #c9a24a;border-radius:10px;color:#8a6420}
+.bal-banner b{display:block;font-size:1.05rem}.bal-banner small{display:block;margin-top:2px;color:#6E6A5F}
+.st.st-bal::before{content:none}
