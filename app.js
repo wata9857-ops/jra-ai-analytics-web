@@ -299,7 +299,7 @@
     const rel = r.release_at && new Date(r.release_at) > new Date();
     const right = started ? `<span class="st">発走済み</span>`
       : rel ? `<span class="st st-sched">公開予定 ${relTime(r.release_at)}</span>`
-      : r.member_preview && !isPremium() ? `<span class="st st-mp">無料会員に特別公開</span>`
+      : r.member_preview && !isPremium() ? `<span class="st st-mp">無料会員に公開中</span>`
       : isPremium() ? `<span class="st st-open">予想あり</span>` : `<span class="st st-lock">ゴールド会員限定</span>`;
     const b = bal && bal.has(r.race_id);
     return `<a class="rrow ${b ? "is-bal" : ""}" href="#/race/${encodeURIComponent(r.race_id)}">
@@ -1043,7 +1043,7 @@
         <small>${horses.some((h) => h.odds) ? "表示中のオッズは更新した時点のもので、発走までに変わります。" : "今の予想は、枠順が確定した時点の情報（過去の成績・適性・調教など）だけで作った「AI の能力評価」です。オッズが出る前のため、買い方はまだありません。"}</small></div>`;
       else if (!V && P.stage === "final") html += `<div class="stage-ok">✅ ${esc(P.stage_note || "発表された馬体重と、発走直前のオッズで更新した最終版の予想です。")}${upd ? `<span class="so-t">更新日時：${esc(upd)}</span>` : ""}</div>`;
       else if (!V && upd) html += `<p class="note">この予想の更新日時：${esc(upd)}</p>`;
-      if (!V && r.member_preview && !isPremium()) html += `<div class="mp-note">🎁 このレースは、無料会員の方にも特別に公開しています。</div>`;
+      if (!V && r.member_preview && !isPremium()) html += `<div class="mp-note">🎁 発走前の予想は、無料会員の方にも公開しています。</div>`;
       html += blk("AI の予想", horsesTable(horses, r.field, V ? posMap : null)
         + (P.character?.text ? `<div class="sheet ctext"><b>レースの性格：${esc(P.character.kind || "")}</b>　${esc(P.character.text)}</div>` : ""), { acc: "ai", tip: TIP_AI });
       html += blk(V ? "買い方（発走前に決めた買い目）" : "買い方と選んだ理由", M?.strategies ? strategyPlans({ strategies: M.strategies, recommended: M.recommended, strategy_stats: M.strategy_stats })
@@ -1059,10 +1059,10 @@
     } else if (!V && r.release_at && new Date(r.release_at) > new Date()) {
       html += `<div class="lockbox sched"><h3>このレースの予想は ${relTime(r.release_at, true)} に公開予定です</h3>
         <p>枠順が確定したあとに暫定の予想を、馬体重・オッズがそろったら発走の約 5 分前に最終版を公開します。</p>
-        ${r.member_preview ? `<p class="note">このレースは無料会員の方にも特別公開します${state.session ? "" : "（無料会員登録・ログインが必要です）"}。</p>` : '<p class="note">発走前の予想はゴールド会員向けです。</p>'}
+        ${r.member_preview ? `<p class="note">このレースは無料会員の方にも公開します${state.session ? "" : "（無料会員登録・ログインが必要です）"}。</p>` : '<p class="note">発走前の予想はゴールド会員向けです。</p>'}
         ${state.session ? "" : '<div class="cta center"><a class="btn shu" href="#/account">無料会員登録・ログイン</a></div>'}</div>`;
     } else if (!V && r.member_preview && !state.session) {
-      html += `<div class="lockbox mp"><h3>🎁 このレースの予想は、無料会員に特別公開中です</h3>
+      html += `<div class="lockbox mp"><h3>🎁 このレースの予想は、無料会員に公開中です</h3>
         <p>無料会員登録（メールアドレスとパスワードだけ）またはログインで、発走前の AI 予想と買い方を見られます。</p>
         <div class="cta center"><a class="btn shu" href="#/account">無料会員登録・ログイン</a></div></div>`;
     } else if (!V) {
