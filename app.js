@@ -331,7 +331,7 @@
     const win = s?.winner ? `<span class="rc-win">1着 <b>${esc(s.winner)}</b>${s.winner_pop ? `<small>（${s.winner_pop}番人気）</small>` : ""}</span>` : "";
     return `<a class="rcard ${cls}" href="#/race/${encodeURIComponent(r.race_id)}">
       <div class="rc-date"><b>${dt.m}/${dt.d}</b><small>${dt.w}</small></div>
-      <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}${s?.pickup ? '<span class="kchip k-ref" title="結果を見て選んだ好結果のレースのため、通算成績には含めていません">好結果ピックアップ</span>' : ""}</div>
+      <div class="rc-main"><div class="rc-title">${gradeBadge(r.grade)}<b>${esc(r.race_name || "")}</b>${s?.kind === "unverified" ? '<span class="kchip k-ref">参考</span>' : ""}${s?.pickup ? '<span class="kchip k-ref" title="結果を見て選んだ好結果のレースのため、通算成績には含めていません">好結果ピックアップ</span>' : ""}${s?.early && !s?.pickup ? '<span class="kchip k-ref" title="発走直前の最終版を出せなかった暫定の予想のため、通算成績には含めていません">暫定・成績外</span>' : ""}</div>
         <div class="rc-meta">${esc(r.course || "")} ${r.race_num ? esc(r.race_num) + "R" : ""}・${esc(r.surface || "")}${esc(r.distance || "")}m・${esc(r.field || "")}頭</div>
         <div class="rc-res">${win}${ai}</div></div>${bet}</a>`;
   }
@@ -1090,6 +1090,7 @@
     const tipPub = `${n} レース（発走前に予想 ${num(p.n_live ?? 0)}・直近 2 週間のレース後予想 ${num(p.n_verified ?? 0)}）で、4 つの買い方どおりに買った場合の成績。`
       + "直近 2 週間は、新馬戦以外のすべてのレースを、そのレースより前のデータだけで学習したモデルで予想しています（未来の情報は使っていません）。外れも含めて全件を集計しています。"
       + (p.n_pickup_excluded ? `「好結果ピックアップ」の ${num(p.n_pickup_excluded)} レースは、結果を見て選んだため成績に含めていません。` : "")
+      + (p.n_early_excluded ? `発走直前の最終版を出せなかった暫定の予想 ${num(p.n_early_excluded)} レースも、成績に含めていません。` : "")
       + "新馬戦は成績に含めていません（予想と買い方は表示します）。";
     const sp = p.strategies_pre || {};
     const liveRows = n > 0 ? SORDER.filter((k) => sl[k]) : [];
@@ -1138,7 +1139,7 @@
       AI推奨と高配当型は買うレースが少なく、数か月単位で見てください。</p>`, { acc: "info", closed: true });
     app.innerHTML = html;
     const colors = { ai: "#1B1A17", stable: "#1F3A5F", balance: "#2E7D32", high: "#B8202B" };
-    const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified" && !x.pickup && !x.shinba).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
+    const rows = Object.values(idx).filter((x) => x.stakes && x.kind !== "unverified" && !x.pickup && !x.shinba && !x.early).sort((x, y) => (x.date || "").localeCompare(y.date || ""));
     const drawCum = () => {
       const accm = {}, ser = {};
       rows.forEach((x) => SORDER.forEach((k) => {
