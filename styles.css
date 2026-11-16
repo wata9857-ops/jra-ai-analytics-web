@@ -915,3 +915,22 @@ a.nx-p:hover{text-decoration:none;border-color:#B8AFA0;box-shadow:0 2px 8px rgba
 .bal-banner{margin:10px 0;padding:12px 14px;background:#fff8ec;border:1.5px solid #c9a24a;border-radius:10px;color:#8a6420}
 .bal-banner b{display:block;font-size:1.05rem}.bal-banner small{display:block;margin-top:2px;color:#6E6A5F}
 .st.st-bal::before{content:none}
+
+/* v86: 隊列の予測（コマ送り） */
+.pf { margin: 8px 0 4px; }
+.pf-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.pf-lab { font-size: 1.15rem; color: #a12e43; }
+.pf-svg svg { display: block; max-width: 100%; }
+.pf-ax { font-size: 10px; fill: #7b8792; }
+.pf-n { font-size: 10.5px; font-weight: 700; pointer-events: none; }
+.pf-ctl { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.pf-btn { border: 1px solid #cfd6dc; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: .9rem; cursor: pointer; min-height: 36px; }
+.pf-play { min-width: 96px; font-weight: 700; }
+.pf-rng { flex: 1; min-width: 80px; accent-color: #a12e43; }
+.pf-cps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.pf-cp { border: 1px solid #e1e5e8; background: #f6f7f8; border-radius: 999px; padding: 3px 9px; font-size: .78rem; cursor: pointer; }
+.pf-cp.on { background: #a12e43; border-color: #a12e43; color: #fff; }
+.pf-info { margin: 6px 0 2px; font-size: .85rem; }
+.pf-order { font-size: .8rem; line-height: 1.7; color: #4a5560; }
+.pf-o { display: inline-block; margin-right: 8px; }
+.pf-o.on { color: #a12e43; font-weight: 700; }

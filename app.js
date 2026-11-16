@@ -556,13 +556,14 @@
       ${blk(`実力順位・全${H.length}頭`, ddBars(H), { acc: "ai", tip: "PRISM が計算した勝率（オッズ不使用）。右の S〜D は総合評価。" })}
       ${blk("要素別マトリクス", `<p class="dd-lead">横に S・A が多い馬ほど、どの面から見ても強い馬です。縦に見ると、その要素で一番の馬が分かります。</p>${ddMatrix(P)}`, { acc: "ai" })}
       ${blk("時計と展開", `<div class="prose-dd">${para("勝つために必要な時計")}</div>${C.speed || ""}<h3 class="dd-h3">予想される隊列</h3>
-        <div class="prose-dd">${para("展開の見通し")}</div>${C.formation || ""}<p class="muted dd-cap">赤 = 実力 1〜3 位、青 = 4〜6 位、灰 = 7 位以下（数字は実力順位）。左ほど前に行く馬です。</p>`, { acc: "info" })}
+        <div class="prose-dd">${para("展開の見通し")}</div>${C.formation || ""}<p class="muted dd-cap">赤 = 実力 1〜3 位、青 = 4〜6 位、灰 = 7 位以下（数字は実力順位）。左ほど前に行く馬です。</p>${P.flow && window.PrismFlow ? `<h3 class="dd-h3">レースの流れ（隊列の予測）</h3>${window.PrismFlow.html(P.flow)}<p class="muted dd-cap">各コーナーと直線の残り 600・400・200m、ゴールでの全馬の位置の予測です。過去のレースの位置取り（1・4 コーナー）と枠、実力順位・末脚から見積もった目安で、実際の展開とは違うことがあります。${P.flow.has_draw ? "丸の色は枠の色、数字は馬番。" : "枠順確定前のため内外はまだ分かりません（数字は実力順位、色は赤＝1〜3 位・青＝4〜6 位）。"}</p>` : ""}`, { acc: "info" })}
       ${blk("ペース別の有力馬", `<div class="prose-dd">${para("ペース別の見どころ")}</div>${ddScen(P)}`, { acc: "info" })}
       ${blk(P.stage === "post" ? "実際の枠の有利・不利" : "枠の影響", `<div class="prose-dd">${para("枠の影響")}</div>${C.gate || ""}`, { acc: "info" })}
       ${mUniq}
       ${blk("各馬の分析", `<div class="ddh">${H.map((h) => ddHorse(h, P, mx)).join("")}</div>`, { acc: "ai" })}
       ${mFact}
       ${blk("用語の説明", `<dl class="dd-gl">${(P.glossary || []).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`, { acc: "info", closed: true })}`;
+    if (window.PrismFlow) window.PrismFlow.mount(app);
   }
   // トップの「次の開催」：AI 予想（買い方）と能力のディープ分析を、レースごとに 1 行にまとめる（●公開中 △暫定・一部 ✕まだ）
   const NX_MARK = (k) => `<span class="nx-m ${k}">${k === "ok" ? "●" : "✕"}</span>`;
